@@ -1,9 +1,10 @@
 /target
 /classes
 /checkouts
-Clojure REPL
+/Clojure REPL
 pom.xml
 pom.xml.asc
+*.iml
 *.jar
 *.class
 /.lein-*

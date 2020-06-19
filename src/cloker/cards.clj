@@ -40,15 +40,22 @@
 
 (make-printable Card)
 
-(defn new-deck [] (for [suit (vals suits) rank (vals ranks)] (Card. rank suit)))
+(defn new-deck []
+  (vec (for [suit (vals suits)
+             rank (vals ranks)]
+         (Card. rank suit))))
 
 (defn draw
   ([deck] [(first deck) (rest deck)])
-  ([n deck] [(take n deck) (drop n deck)]))
-
+  ([n deck] [(vec (take n deck)) (vec (drop n deck))]))
 
 (defn draw-hands [n deck]
   (let [num-cards (* cards-per-hand n)
         [top-cards deck] (draw num-cards deck)
         hands (mapv vec (partition cards-per-hand top-cards))]
     [hands deck]))
+
+(defn add [deck cards]
+  (if (sequential? cards)
+    (apply conj deck cards)
+    (conj deck cards)))

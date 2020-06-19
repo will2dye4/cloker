@@ -1,12 +1,13 @@
-(ns cloker.utils)
+(ns cloker.utils
+  (:import (java.io Writer)))
 
 (defn make-printable [type]
-  (defmethod print-method type [object ^java.io.Writer writer]
+  (defmethod print-method type [object ^Writer writer]
     (print-method (symbol (str object)) writer))
-  (defmethod print-dup type [object ^java.io.Writer writer]
+  (defmethod print-dup type [object ^Writer writer]
     (print-ctor object (fn [o w] (print-dup (vals o) w)) writer))
   (defmethod clojure.pprint/simple-dispatch type [object]
-    (.write *out* (str object))))
+    (.write ^Writer *out* (str object))))
 
 (defn value-comparator [m]
   (fn [key1 key2]
