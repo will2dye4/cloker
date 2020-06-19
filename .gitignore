@@ -1,6 +1,7 @@
 /target
 /classes
 /checkouts
+Clojure REPL
 pom.xml
 pom.xml.asc
 *.jar
