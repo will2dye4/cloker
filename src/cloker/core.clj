@@ -3,6 +3,10 @@
             [cloker.cards :refer :all])
   (:gen-class))
 
+(def deck (new-deck))
+
+(def shuffled-deck (shuffle deck))
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
