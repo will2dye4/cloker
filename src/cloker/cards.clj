@@ -3,14 +3,22 @@
 
 (def cards-per-hand 2)
 
-(defrecord Suit [value symbol])
+(defrecord Suit [value symbol]
+  Comparable
+    (compareTo [suit other] (compare (:value suit) (:value other)))
+  Object
+    (toString [suit] (:symbol suit)))
 
 (def suits (sorted-map-by-value {:spades (Suit. 4 "♠︎")
                                  :hearts (Suit. 3 "♥︎")
                                  :diamonds (Suit. 2 "♦︎")
                                  :clubs (Suit. 1 "♣")}))
 
-(defrecord Rank [value symbol name])
+(defrecord Rank [value symbol name]
+  Comparable
+    (compareTo [rank other] (compare (:value rank) (:value other)))
+  Object
+    (toString [rank] (:symbol rank)))
 
 (def ranks (sorted-map-by-value {:2 (Rank. 2 "2" "deuce")
                                  :3 (Rank. 3 "3" "three")
@@ -26,14 +34,18 @@
                                  :king (Rank. 13 "K" "king")
                                  :ace (Rank. 14 "A" "ace")}))
 
-(defrecord Card [rank suit])
+(defrecord Card [rank suit]
+  Object
+    (toString [card] (str (:rank card) (:suit card))))
 
-(make-printable Card #(symbol (str (:symbol (:rank %)) (:symbol (:suit %)))))
+(make-printable Card)
 
 (defn new-deck [] (for [suit (vals suits) rank (vals ranks)] (Card. rank suit)))
 
-(defn draw [n deck]
-  [(take n deck) (drop n deck)])
+(defn draw
+  ([deck] [(first deck) (rest deck)])
+  ([n deck] [(take n deck) (drop n deck)]))
+
 
 (defn draw-hands [n deck]
   (let [num-cards (* cards-per-hand n)
