@@ -1,5 +1,14 @@
 (ns cloker.utils
+  (:require [clojure.string :as str])
   (:import (java.io Writer)))
+
+(def enumerate (partial map-indexed vector))
+
+(defn keyword->name [keyword]
+  (-> keyword
+      name
+      (.replace "-" " ")
+      str/capitalize))
 
 (defn make-printable [type]
   (defmethod print-method type [object ^Writer writer]
