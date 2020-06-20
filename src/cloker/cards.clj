@@ -1,7 +1,6 @@
 (ns cloker.cards
-  (:require [cloker.utils :refer :all]))
-
-(def cards-per-hand 2)
+  (:require [cloker.utils :refer :all]
+            [cloker.constants :refer [num-hole-cards]]))
 
 (defrecord Suit [value symbol]
   Comparable
@@ -40,19 +39,22 @@
 
 (make-printable Card)
 
+(defn card [rank suit]
+  (Card. (ranks rank) (suits suit)))
+
 (defn new-deck []
   (vec (for [suit (vals suits)
              rank (vals ranks)]
          (Card. rank suit))))
 
 (defn draw
-  ([deck] [(first deck) (rest deck)])
+  ([deck] [(first deck) (vec (rest deck))])
   ([n deck] [(vec (take n deck)) (vec (drop n deck))]))
 
 (defn draw-hands [n deck]
-  (let [num-cards (* cards-per-hand n)
+  (let [num-cards (* num-hole-cards n)
         [top-cards deck] (draw num-cards deck)
-        hands (mapv vec (partition cards-per-hand top-cards))]
+        hands (mapv vec (partition num-hole-cards top-cards))]
     [hands deck]))
 
 (defn add [deck cards]

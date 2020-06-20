@@ -1,6 +1,7 @@
 (ns cloker.core
   (:require [clojure.pprint :refer [pprint]]
-            [cloker.cards :refer :all])
+            [cloker.cards :refer :all]
+            [cloker.rating :refer :all])
   (:gen-class))
 
 (def deck (new-deck))
