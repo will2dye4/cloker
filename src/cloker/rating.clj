@@ -21,11 +21,6 @@
                                       :pair (HandType. 2 "Pair")
                                       :high-card (HandType. 1 "High card")}))
 
-(defrecord HandRating [cards hand-type])
-
-;; TODO
-(defn hand-rating [cards])
-
 (defn has-enough-cards? [n cards]
   (>= (count cards) n))
 
@@ -68,11 +63,11 @@
                                  (partition-by :rank)
                                  (map first))
         highest-card (last distinct-rank-cards)]
-    (if (= (:rank highest-card) (ranks :ace))
-      (cons highest-card distinct-rank-cards)
-      distinct-rank-cards)))
+    (vec
+      (if (= (:rank highest-card) (ranks :ace))
+        (cons highest-card distinct-rank-cards)
+        distinct-rank-cards))))
 
-;; TODO test this more
 (defn best-straight [cards rank-fn]
   (let [cards (-sorted-cards-for-straight-check cards)
         consecutive-pairs (map vector cards (drop 1 cards))
@@ -89,8 +84,14 @@
             (recur (best-of-two current-straight best-straight) [current-card] (rest pairs))))
         (best-of-two current-straight best-straight)))))
 
-;; TODO
-(defn highest-straight [cards])
+(defn highest-straight [cards]
+  (best-straight cards
+    (fn [current best-so-far]
+      (if (or (empty? best-so-far)
+              (and (= (count best-so-far) 1)
+                   (= (:rank (first best-so-far)) (ranks :ace))))
+        1
+        (compare (:rank (first current)) (:rank (first best-so-far)))))))
 
 (defn longest-straight [cards]
   (best-straight cards #(compare (count %1) (count %2))))
@@ -98,8 +99,34 @@
 (defn has-straight? [cards]
   (>= (count (longest-straight cards)) hand-size))
 
-;; TODO
-(defn has-straight-draw? [cards])
+(defn has-straight-draw? [cards]
+  (let [num-cards-needed (dec hand-size)
+        longest-straight-size (count (longest-straight cards))]
+    (if (= longest-straight-size num-cards-needed)
+      true  ;; open-ended straight draw
+      (if (> longest-straight-size num-cards-needed)
+        false  ;; already has a straight!
+        (let [cards (-sorted-cards-for-straight-check cards)]
+          (loop [i 0, j num-cards-needed]
+            (if (> j (count cards))
+              false  ;; didn't find a straight draw
+              (let [current-cards (subvec cards i j)
+                    gaps (loop [gaps []
+                                pairs (map vector current-cards (drop 1 current-cards))]
+                           (if-let [[prev-card current-card] (first pairs)]
+                             (let [prev-rank-value (if (= (:rank prev-card) (ranks :ace))
+                                                     1
+                                                     (:value (:rank prev-card)))
+                                   delta (- (:value (:rank current-card)) prev-rank-value)
+                                   gaps (if (> delta 1)
+                                          (conj gaps delta)
+                                          gaps)]
+                               (recur gaps (rest pairs)))
+                             gaps))]
+                (if (and (= (count gaps) 1)
+                         (= (first gaps) 2))
+                  true  ;; inside straight draw
+                  (recur (inc i) (inc j)))))))))))
 
 (defn biggest-flush [cards]
   (when-not (empty? cards)
@@ -120,3 +147,11 @@
 
 (defn has-flush-draw? [cards]
   (= (count (biggest-flush cards)) (dec hand-size)))
+
+(defrecord HandRating [cards hand-type participating-cards])
+
+;; TODO
+(defn hand-rating [cards]
+  (cond
+    (has-straight-flush? cards)
+      (let [straight-flush (-> cards biggest-flush longest-straight)])))
