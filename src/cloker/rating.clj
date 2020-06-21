@@ -1,6 +1,7 @@
 (ns cloker.rating
   (:require [clojure.set :as set]
-            [cloker.cards :refer [ranks]]
+            [clojure.string :as str]
+            [cloker.cards :refer [pluralize-rank ranks]]
             [cloker.constants :refer [hand-size]]
             [cloker.utils :refer :all]))
 
@@ -21,7 +22,7 @@
 
 (defn- sorted-cards-for-straight-check [cards]
   (let [distinct-rank-cards (->> cards
-                                 (sort-by :rank)
+                                 sort
                                  (partition-by :rank)
                                  (map first))
         highest-card (last distinct-rank-cards)]
@@ -91,10 +92,10 @@
   (when-not (empty? cards)
     (->> cards
          (group-by :suit)
-         (sort-by (comp count second))
+         (map val)
+         (sort-by count)
          last
-         val
-         (sort-by :rank)
+         sort
          vec)))
 
 (defn has-flush-draw? [cards]
@@ -114,9 +115,9 @@
 
 (defrecord HandType [key value name]
   Comparable
-    (compareTo [hand-type other] (compare (:value hand-type) (:value other)))
+    (compareTo [_ other] (compare value (:value other)))
   Object
-    (toString [hand-type] (:name hand-type)))
+    (toString [_] name))
 
 ;; NOTE: keep these in sorted order!
 (def ^:private hand-type-keys [:high-card, :pair, :two-pair, :three-of-a-kind, :straight, :flush,
@@ -125,6 +126,13 @@
 (def hand-types (sorted-map-by-value
                   (into {} (for [[i key] (enumerate hand-type-keys)]
                              [key (HandType. key (inc i) (keyword->name key))]))))
+
+(defn indefinite-form [hand-type]
+  (let [needs-article #{:pair :straight :flush :full-house :straight-flush :royal-flush}
+        term (str/lower-case (:name hand-type))]
+    (if (needs-article (:key hand-type))
+      (str "a " term)
+      term)))
 
 (def ^:private hand-type-hierarchy (-> (make-hierarchy)
                                        (derive :royal-flush :straight-flush)))
@@ -135,7 +143,7 @@
 
 (defmethod participating-cards :high-card
   [_ cards]
-  (when cards []))
+  (when-not (empty? cards) []))
 
 (defmethod participating-cards :pair
   [_ cards]
@@ -184,14 +192,34 @@
               (= (:rank (first straight-flush)) (ranks :10)))
       straight-flush)))
 
-(defrecord HandRating [cards hand-type participating-cards])
+(defrecord HandRating [cards hand-type participating-cards kickers]
+  Object
+    (toString [_]
+      (let [rating (indefinite-form hand-type)
+            first-rank-plural (pluralize-rank (first participating-cards))
+            last-rank-plural (pluralize-rank (last participating-cards))]
+        (case (:key hand-type)
+          :high-card "nothing"
+          :pair (str rating " of " first-rank-plural)
+          :three-of-a-kind (str "three " first-rank-plural)
+          :four-of-a-kind (str "four " first-rank-plural)
+          :two-pair (str rating " (" first-rank-plural " and " last-rank-plural ")")
+          :full-house (str rating " (" first-rank-plural " full of " last-rank-plural ")")
+          (str rating " " (apply list participating-cards))))))
+
+(defn- hand-rating [hand-type cards]
+  (let [participants (participating-cards (key hand-type) cards)
+        kickers (->> cards
+                     (excluding participants)
+                     sort
+                     reverse
+                     vec)]
+    (HandRating. cards (val hand-type) participants kickers)))
 
 (defn rate-hand [cards]
   (->> hand-types
        reverse
-       (map #(->> cards
-                  (participating-cards (key %))
-                  (HandRating. cards (val %))))
+       (map #(hand-rating % cards))
        (remove (comp nil? :participating-cards))
        first))
 

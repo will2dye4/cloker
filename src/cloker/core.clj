@@ -8,8 +8,10 @@
 
 (def shuffled-deck (shuffle deck))
 
+(def cards (take 10 shuffled-deck))
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
-  (let [[hands deck] (draw-hands 3 shuffled-deck)]
-    (pprint hands)))
+  (println (sort cards))
+  (pprint (rate-hand cards)))

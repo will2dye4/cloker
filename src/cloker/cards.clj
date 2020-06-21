@@ -6,7 +6,7 @@
   Comparable
     (compareTo [suit other] (compare (:value suit) (:value other)))
   Object
-    (toString [suit] (:symbol suit)))
+    (toString [_] symbol))
 
 (def suits (sorted-map-by-value {:spades (Suit. 4 "♠︎")
                                  :hearts (Suit. 3 "♥︎")
@@ -15,9 +15,9 @@
 
 (defrecord Rank [value symbol name]
   Comparable
-    (compareTo [rank other] (compare (:value rank) (:value other)))
+    (compareTo [_ other] (compare value (:value other)))
   Object
-    (toString [rank] (:symbol rank)))
+    (toString [_] symbol))
 
 (def ranks (sorted-map-by-value {:2 (Rank. 2 "2" "deuce")
                                  :3 (Rank. 3 "3" "three")
@@ -34,13 +34,21 @@
                                  :ace (Rank. 14 "A" "ace")}))
 
 (defrecord Card [rank suit]
+  Comparable
+    (compareTo [_ other] (compare [rank suit] [(:rank other) (:suit other)]))
   Object
-    (toString [card] (str (:rank card) (:suit card))))
+    (toString [_] (str rank suit)))
 
 (make-printable Card)
 
 (defn card [rank suit]
   (Card. (ranks rank) (suits suit)))
+
+(defn pluralize-rank [card]
+  (let [rank (:rank card)]
+    (if (= rank (ranks :6))
+      "sixes"
+      (str (:name rank) "s"))))
 
 (defn new-deck []
   (vec (for [suit (vals suits)
