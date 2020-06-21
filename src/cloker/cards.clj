@@ -4,7 +4,7 @@
 
 (defrecord Suit [value symbol]
   Comparable
-    (compareTo [suit other] (compare (:value suit) (:value other)))
+    (compareTo [_ other] (compare value (:value other)))
   Object
     (toString [_] symbol))
 
