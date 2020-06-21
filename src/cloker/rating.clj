@@ -13,12 +13,12 @@
 (defn highest-n-of-a-kind [n cards]
   {:pre (> n 1)}
   (when (>= (count cards) n)
-    (let [sorted-groups (->> cards
-                             (group-by :rank)
-                             (filter #(= n (count (second %))))
-                             sort)]
-      (when-not (empty? sorted-groups)
-        (val (last sorted-groups))))))
+    (->> cards
+         (group-by :rank)
+         sort
+         (map val)
+         (filter #(= n (count %)))
+         last)))
 
 (defn- sorted-cards-for-straight-check [cards]
   (let [distinct-rank-cards (->> cards
