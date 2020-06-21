@@ -4,6 +4,8 @@
 
 (def enumerate (partial map-indexed vector))
 
+(defn consecutive-pairs [coll] (map vector coll (drop 1 coll)))
+
 (defn keyword->name [keyword]
   (-> keyword
       name

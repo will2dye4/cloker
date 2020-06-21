@@ -20,6 +20,8 @@
          (filter #(= n (count %)))
          last)))
 
+(def highest-pair (partial highest-n-of-a-kind 2))
+
 (defn- sorted-cards-for-straight-check [cards]
   (let [distinct-rank-cards (->> cards
                                  sort
@@ -33,18 +35,17 @@
 
 (defn best-straight [cards rank-fn]
   (let [cards (sorted-cards-for-straight-check cards)
-        consecutive-pairs (map vector cards (drop 1 cards))
+        pairs (consecutive-pairs cards)
         best-of-two #(if (pos? (rank-fn %1 %2)) %1 %2)]
     (loop [best-straight []
            current-straight [(first cards)]
-           pairs consecutive-pairs]
+           pairs pairs]
       (if-let [[prev-card current-card] (first pairs)]
-        (let [rank-delta (- (:value (:rank current-card)) (:value (:rank prev-card)))]
-          (if (or (= rank-delta 1)
-                  (and (= (:rank current-card) (ranks :two))
-                       (= (:rank prev-card) (ranks :ace))))
-            (recur best-straight (conj current-straight current-card) (rest pairs))
-            (recur (best-of-two current-straight best-straight) [current-card] (rest pairs))))
+        (if (or (= 1 (- (:value (:rank current-card)) (:value (:rank prev-card))))
+                (and (= (:rank current-card) (ranks :2))
+                     (= (:rank prev-card) (ranks :ace))))
+          (recur best-straight (conj current-straight current-card) (rest pairs))
+          (recur (best-of-two current-straight best-straight) [current-card] (rest pairs)))
         (best-of-two current-straight best-straight)))))
 
 (defn highest-straight [cards]
@@ -59,34 +60,35 @@
 (defn longest-straight [cards]
   (best-straight cards #(compare (count %1) (count %2))))
 
+(defn rank-delta [[prev-card current-card]]
+  (let [prev-rank (if (and (= (:rank prev-card) (ranks :ace))
+                           (not= (:rank current-card) (ranks :ace)))
+                    1
+                    (:value (:rank prev-card)))]
+    (- (:value (:rank current-card)) prev-rank)))
+
+(defn has-inside-straight-draw? [cards]
+  (let [cards (sorted-cards-for-straight-check cards)]
+    (loop [i 0, j (dec hand-size)]
+      (if (> j (count cards))
+        false  ;; ran out of cards
+        (let [gaps (->> cards
+                        (#(subvec % i j))
+                        consecutive-pairs
+                        (map rank-delta)
+                        (filter #(> % 1))
+                        vec)]
+          (if (= gaps [2])
+            true  ;; exactly one missing card -> inside straight draw
+            (recur (inc i) (inc j))))))))
+
 (defn has-straight-draw? [cards]
   (let [num-cards-needed (dec hand-size)
         longest-straight-size (count (longest-straight cards))]
-    (if (= longest-straight-size num-cards-needed)
-      true  ;; open-ended straight draw
-      (if (> longest-straight-size num-cards-needed)
-        false  ;; already has a straight!
-        (let [cards (sorted-cards-for-straight-check cards)]
-          (loop [i 0, j num-cards-needed]
-            (if (> j (count cards))
-              false  ;; didn't find a straight draw
-              (let [current-cards (subvec cards i j)
-                    gaps (loop [gaps []
-                                pairs (map vector current-cards (drop 1 current-cards))]
-                           (if-let [[prev-card current-card] (first pairs)]
-                             (let [prev-rank-value (if (= (:rank prev-card) (ranks :ace))
-                                                     1
-                                                     (:value (:rank prev-card)))
-                                   delta (- (:value (:rank current-card)) prev-rank-value)
-                                   gaps (if (> delta 1)
-                                          (conj gaps delta)
-                                          gaps)]
-                               (recur gaps (rest pairs)))
-                             gaps))]
-                (if (and (= (count gaps) 1)
-                         (= (first gaps) 2))
-                  true  ;; inside straight draw
-                  (recur (inc i) (inc j)))))))))))
+    (cond
+      (= longest-straight-size num-cards-needed) true   ;; open-ended straight draw
+      (> longest-straight-size num-cards-needed) false  ;; already has a straight!
+      :else (has-inside-straight-draw? cards))))
 
 (defn biggest-flush [cards]
   (when-not (empty? cards)
@@ -147,14 +149,14 @@
 
 (defmethod participating-cards :pair
   [_ cards]
-  (highest-n-of-a-kind 2 cards))
+  (highest-pair cards))
 
 (defmethod participating-cards :two-pair
   [_ cards]
-  (when-let [top-pair (highest-n-of-a-kind 2 cards)]
+  (when-let [top-pair (highest-pair cards)]
     (when-let [second-pair (->> cards
                                 (excluding top-pair)
-                                (highest-n-of-a-kind 2))]
+                                highest-pair)]
       (vec (concat second-pair top-pair)))))
 
 (defmethod participating-cards :three-of-a-kind
@@ -178,7 +180,7 @@
   (when-let [three-of-a-kind (highest-n-of-a-kind 3 cards)]
       (when-let [pair (->> cards
                            (excluding three-of-a-kind)
-                           (highest-n-of-a-kind 2))]
+                           highest-pair)]
         (vec (concat three-of-a-kind pair)))))
 
 (defmethod participating-cards :four-of-a-kind
