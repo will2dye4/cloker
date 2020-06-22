@@ -22,7 +22,14 @@
 
 (def highest-pair (partial highest-n-of-a-kind 2))
 
-(defn- sorted-cards-for-straight-check [cards]
+(defn rank-delta [[prev-card current-card]]
+  (let [prev-rank (if (and (= (:rank prev-card) (ranks :ace))
+                           (not= (:rank current-card) (ranks :ace)))
+                    1
+                    (:value (:rank prev-card)))]
+    (- (:value (:rank current-card)) prev-rank)))
+
+(defn- sort-for-straight-check [cards]
   (let [distinct-rank-cards (->> cards
                                  sort
                                  (partition-by :rank)
@@ -30,20 +37,18 @@
         highest-card (last distinct-rank-cards)]
     (vec
       (if (= (:rank highest-card) (ranks :ace))
-        (cons highest-card distinct-rank-cards)
+        (cons highest-card distinct-rank-cards)  ;; stash an ace at the beginning to check for a wheel
         distinct-rank-cards))))
 
 (defn best-straight [cards rank-fn]
-  (let [cards (sorted-cards-for-straight-check cards)
+  (let [cards (sort-for-straight-check cards)
         pairs (consecutive-pairs cards)
         best-of-two #(if (pos? (rank-fn %1 %2)) %1 %2)]
     (loop [best-straight []
            current-straight [(first cards)]
            pairs pairs]
-      (if-let [[prev-card current-card] (first pairs)]
-        (if (or (= 1 (- (:value (:rank current-card)) (:value (:rank prev-card))))
-                (and (= (:rank current-card) (ranks :2))
-                     (= (:rank prev-card) (ranks :ace))))
+      (if-let [[_ current-card :as pair] (first pairs)]
+        (if (= (rank-delta pair) 1)
           (recur best-straight (conj current-straight current-card) (rest pairs))
           (recur (best-of-two current-straight best-straight) [current-card] (rest pairs)))
         (best-of-two current-straight best-straight)))))
@@ -60,15 +65,8 @@
 (defn longest-straight [cards]
   (best-straight cards #(compare (count %1) (count %2))))
 
-(defn rank-delta [[prev-card current-card]]
-  (let [prev-rank (if (and (= (:rank prev-card) (ranks :ace))
-                           (not= (:rank current-card) (ranks :ace)))
-                    1
-                    (:value (:rank prev-card)))]
-    (- (:value (:rank current-card)) prev-rank)))
-
 (defn has-inside-straight-draw? [cards]
-  (let [cards (sorted-cards-for-straight-check cards)]
+  (let [cards (sort-for-straight-check cards)]
     (loop [i 0, j (dec hand-size)]
       (if (> j (count cards))
         false  ;; ran out of cards
