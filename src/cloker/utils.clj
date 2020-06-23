@@ -6,6 +6,11 @@
 
 (defn consecutive-pairs [coll] (map vector coll (drop 1 coll)))
 
+(defn map-keys
+  ([val-fn keys] (map-keys val-fn {} keys))
+  ([val-fn init keys]
+    (into init (map #(vector % (val-fn %)) keys))))
+
 (defn keyword->name [keyword]
   (-> keyword
       name
@@ -26,6 +31,11 @@
 
 (defn sorted-map-by-value [m]
   (into (sorted-map-by (value-comparator m)) m))
+
+(defn percentage [numer denom]
+  (if (zero? denom)
+    0.0
+    (* 100.0 (/ numer denom))))
 
 (defn repeat-char [c n]
   (apply str (repeat n c)))

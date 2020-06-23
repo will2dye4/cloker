@@ -7,40 +7,50 @@
 
 (def ^:const heading-width 42)
 
+(defn- results->outcomes [hand-results key]
+  (let [outcomes (flatten (map key hand-results))]
+    {:total (count outcomes)
+     :groups (group-by (comp :hand-type :rating) outcomes)}))
+
+(defn- hand-type->counts [stats hand-type]
+  (let [total-occurrences (count (get-in stats [:ratings :groups hand-type]))
+        winning-occurrences (count (get-in stats [:winners :groups hand-type]))]
+    {:total {:occurrences total-occurrences
+             :frequency (percentage total-occurrences (get-in stats [:ratings :total]))}
+     :wins {:occurrences winning-occurrences
+            :frequency (percentage winning-occurrences (get-in stats [:winners :total]))}
+     :hand-won-frequency (percentage winning-occurrences total-occurrences)}))
+
+(defn hand-frequencies [hand-results]
+  (let [stats (map-keys (partial results->outcomes hand-results) [:ratings :winners])]
+    (map-keys (partial hand-type->counts stats) (sorted-map) (vals hand-types))))
+
 (defn- format-line [name occurrences frequency]
   (format "%16s %,8d\t\t%9s" name occurrences (format "(%.2f%%)" frequency)))
 
-(defn- show-outcomes [heading outcomes]
-  (let [flattened-outcomes (flatten outcomes)
-        total-outcomes (count flattened-outcomes)
-        grouped-outcomes (group-by (comp :hand-type :rating) flattened-outcomes)
-        occurrence-counts (for [hand-type (vals hand-types)]
-                            (let [occurrences (count (grouped-outcomes hand-type))
-                                  frequency (* 100.0 (/ occurrences total-outcomes))]
-                              [(:name hand-type) occurrences frequency]))
-        frequency-total (reduce + (map last occurrence-counts))]
+(defn- show-outcomes [hand-freqs key]
+  (let [heading (str ({:total "All" :wins "Winning"} key) " Outcomes")
+        sum-field (fn [field] (reduce + (map #(get-in (val %) [key field]) hand-freqs)))
+        total-outcomes (sum-field :occurrences)
+        frequency-total (sum-field :frequency)]
     (println (center-heading heading heading-width))
-    (doseq [counts occurrence-counts]
-      (println (apply format-line counts)))
+    (doseq [[hand-type counts] hand-freqs]
+      (let [name (:name hand-type)
+            occurrences (get-in counts [key :occurrences])
+            frequency (get-in counts [key :frequency])]
+        (println (format-line name occurrences frequency))))
     (println (repeat-char \- heading-width))
     (println (format-line "Total" total-outcomes frequency-total))))
 
-(defn group-by-hand-type [outcomes]
-  (group-by (comp :hand-type :rating) (flatten outcomes)))
-
-(defn- show-hand-strength [hand-results]
-  (let [all-outcomes (group-by-hand-type (map :ratings hand-results))
-        winning-outcomes (group-by-hand-type (map :winners hand-results))
-        win-counts (for [hand-type (vals hand-types)]
-                     (let [total (count (all-outcomes hand-type))
-                           wins (count (winning-outcomes hand-type))
-                           win-freq (if (zero? total) 0.0 (* 100.0 (/ wins total)))]
-                       [(:name hand-type) wins total win-freq]))]
-    (println (center-heading "Hand Strength" (+ 4 heading-width)))
-    (doseq [[name wins total frequency] win-counts]
-      (let [ratio (format "%,d / %,d" wins total)
-            freq (format "(%.2f%%)" frequency)]
-        (println (format "%16s %14s\t\t%9s" name ratio freq))))))
+(defn- show-hand-strength [hand-freqs]
+  (println (center-heading "Hand Strength" (+ 8 heading-width)))
+  (doseq [[hand-type counts] hand-freqs]
+    (let [name (:name hand-type)
+          total (get-in counts [:total :occurrences])
+          wins (get-in counts [:wins :occurrences])
+          ratio (format "%,d / %,d" wins total)
+          win-frequency (format "(%.2f%%)" (:hand-won-frequency counts))]
+      (println (format "%16s %18s\t\t%9s" name ratio win-frequency)))))
 
 (defn run-hand [num-players]
   (let [deck (shuffle (new-deck))
@@ -55,9 +65,10 @@
 
 (defn run-hands [& {:keys [n num-players] :or {n 1000 num-players 4}}]
   {:pre [(pos? n) (< 1 num-players 24)]}
-  (let [hand-results (repeatedly n #(run-hand num-players))]
-    (show-outcomes "All Outcomes" (map :ratings hand-results))
+  (let [hand-results (repeatedly n #(run-hand num-players))
+        hand-freqs (hand-frequencies hand-results)]
+    (show-outcomes hand-freqs :total)
     (println)
-    (show-outcomes "Winning Outcomes" (map :winners hand-results))
+    (show-outcomes hand-freqs :wins)
     (println)
-    (show-hand-strength hand-results)))
+    (show-hand-strength hand-freqs)))
