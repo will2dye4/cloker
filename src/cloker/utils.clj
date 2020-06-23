@@ -26,3 +26,12 @@
 
 (defn sorted-map-by-value [m]
   (into (sorted-map-by (value-comparator m)) m))
+
+(defn repeat-char [c n]
+  (apply str (repeat n c)))
+
+(defn center-heading [heading width]
+    (let [padding (- width (+ 2 (count heading)))
+          left-padding (int (/ padding 2))
+          right-padding (if (odd? padding) (inc left-padding) left-padding)]
+      (str (repeat-char \= left-padding) \space heading \space (repeat-char \= right-padding))))

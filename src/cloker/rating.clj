@@ -155,7 +155,7 @@
     (when-let [second-pair (->> cards
                                 (excluding top-pair)
                                 highest-pair)]
-      (vec (concat second-pair top-pair)))))
+      (vec (concat top-pair second-pair)))))
 
 (defmethod participating-cards :three-of-a-kind
   [_ cards]
@@ -192,7 +192,21 @@
               (= (:rank (first straight-flush)) (ranks :10)))
       straight-flush)))
 
+(defn hand-rating-sort-key [rating]
+  (let [hand-type (:hand-type rating)
+        ranks-of (fn [cards]
+                   (->> cards
+                        (map :rank)
+                        (#(if (= :flush (:key hand-type)) (reverse %) %))
+                        vec))]
+    [hand-type
+     (ranks-of (:participating-cards rating))
+     (ranks-of (:kickers rating))]))
+
 (defrecord HandRating [cards hand-type participating-cards kickers]
+  Comparable
+    (compareTo [rating other]
+      (compare (hand-rating-sort-key rating) (hand-rating-sort-key other)))
   Object
     (toString [_]
       (let [rating (indefinite-form hand-type)
@@ -209,11 +223,15 @@
 
 (defn- hand-rating [hand-type cards]
   (let [participants (participating-cards (key hand-type) cards)
-        kickers (->> cards
-                     (excluding participants)
-                     sort
-                     reverse
-                     vec)]
+        num-kickers (- hand-size (count participants))
+        kickers (if (zero? num-kickers)
+                  []
+                  (->> cards
+                       (excluding participants)
+                       sort
+                       reverse
+                       (take num-kickers)
+                       vec))]
     (HandRating. cards (val hand-type) participants kickers)))
 
 (defn rate-hand [cards]

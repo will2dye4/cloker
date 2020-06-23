@@ -62,7 +62,7 @@
 (defn draw-hands [n deck]
   (let [num-cards (* num-hole-cards n)
         [top-cards deck] (draw num-cards deck)
-        hands (mapv vec (partition num-hole-cards top-cards))]
+        hands (mapv (comp vec reverse sort) (partition num-hole-cards top-cards))]
     [hands deck]))
 
 (defn add [deck cards]
