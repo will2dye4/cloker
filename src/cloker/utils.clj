@@ -11,19 +11,27 @@
   ([val-fn init keys]
     (into init (map #(vector % (val-fn %)) keys))))
 
+(defn map-vals
+  ([f m]
+    (map-vals f {} m))
+  ([f init m]
+    (reduce-kv #(assoc %1 %2 (f %3)) init m)))
+
 (defn keyword->name [keyword]
   (-> keyword
       name
       (.replace "-" " ")
       str/capitalize))
 
-(defn make-printable [type]
-  (defmethod print-method type [object ^Writer writer]
-    (print-method (symbol (str object)) writer))
-  (defmethod print-dup type [object ^Writer writer]
-    (print-ctor object (fn [o w] (print-dup (vals o) w)) writer))
-  (defmethod clojure.pprint/simple-dispatch type [object]
-    (.write ^Writer *out* (str object))))
+(defn make-printable
+  ([type] (make-printable type symbol))
+  ([type coerce]
+    (defmethod print-method type [object ^Writer writer]
+      (print-method (coerce (str object)) writer))
+    (defmethod print-dup type [object ^Writer writer]
+      (print-ctor object (fn [o w] (print-dup (vals o) w)) writer))
+    (defmethod clojure.pprint/simple-dispatch type [object]
+      (.write ^Writer *out* (str object)))))
 
 (defn value-comparator [m]
   (fn [key1 key2]

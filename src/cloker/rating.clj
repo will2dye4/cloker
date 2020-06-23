@@ -117,7 +117,9 @@
   Comparable
     (compareTo [_ other] (compare value (:value other)))
   Object
-    (toString [_] name))
+    (toString [_] (clojure.core/name key)))
+
+(make-printable HandType keyword)
 
 ;; NOTE: keep these in sorted order!
 (def ^:private hand-type-keys [:high-card, :pair, :two-pair, :three-of-a-kind, :straight, :flush,

@@ -10,11 +10,13 @@
 (defn- results->outcomes [hand-results key]
   (let [outcomes (flatten (map key hand-results))]
     {:total (count outcomes)
-     :groups (group-by (comp :hand-type :rating) outcomes)}))
+     :hand-counts (->> outcomes
+                       (group-by (comp :hand-type :rating))
+                       (map-vals count))}))
 
 (defn- hand-type->counts [stats hand-type]
-  (let [total-occurrences (count (get-in stats [:ratings :groups hand-type]))
-        winning-occurrences (count (get-in stats [:winners :groups hand-type]))]
+  (let [total-occurrences (get-in stats [:ratings :hand-counts hand-type] 0)
+        winning-occurrences (get-in stats [:winners :hand-counts hand-type] 0)]
     {:total {:occurrences total-occurrences
              :frequency (percentage total-occurrences (get-in stats [:ratings :total]))}
      :wins {:occurrences winning-occurrences
@@ -25,10 +27,12 @@
   (let [stats (map-keys (partial results->outcomes hand-results) [:ratings :winners])]
     (map-keys (partial hand-type->counts stats) (sorted-map) (vals hand-types))))
 
-(defn- format-line [name occurrences frequency]
-  (format "%16s %,8d\t\t%9s" name occurrences (format "(%.2f%%)" frequency)))
+(def ^:private format-percentage (partial format "(%.2f%%)"))
 
-(defn- show-outcomes [hand-freqs key]
+(defn- format-line [name occurrences frequency]
+  (format "%16s %,8d %16s" name occurrences (format-percentage frequency)))
+
+(defn show-outcomes [hand-freqs key]
   (let [heading (str ({:total "All" :wins "Winning"} key) " Outcomes")
         sum-field (fn [field] (reduce + (map #(get-in (val %) [key field]) hand-freqs)))
         total-outcomes (sum-field :occurrences)
@@ -42,15 +46,15 @@
     (println (repeat-char \- heading-width))
     (println (format-line "Total" total-outcomes frequency-total))))
 
-(defn- show-hand-strength [hand-freqs]
+(defn show-hand-strength [hand-freqs]
   (println (center-heading "Hand Strength" (+ 8 heading-width)))
   (doseq [[hand-type counts] hand-freqs]
     (let [name (:name hand-type)
           total (get-in counts [:total :occurrences])
           wins (get-in counts [:wins :occurrences])
           ratio (format "%,d / %,d" wins total)
-          win-frequency (format "(%.2f%%)" (:hand-won-frequency counts))]
-      (println (format "%16s %18s\t\t%9s" name ratio win-frequency)))))
+          win-frequency (format-percentage (:hand-won-frequency counts))]
+      (println (format "%16s %18s %14s" name ratio win-frequency)))))
 
 (defn run-hand [num-players]
   (let [deck (shuffle (new-deck))
