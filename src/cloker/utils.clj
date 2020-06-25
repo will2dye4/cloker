@@ -6,6 +6,11 @@
 
 (defn consecutive-pairs [coll] (map vector coll (drop 1 coll)))
 
+(defn rotate
+  "Take a sequence and left rotates it n steps. If n is negative, the collection is rotated right."
+  [n coll]
+  (let [c (count coll)] (take c (drop (mod n c) (cycle coll)))))
+
 (defn map-keys
   ([val-fn keys] (map-keys val-fn {} keys))
   ([val-fn init keys]

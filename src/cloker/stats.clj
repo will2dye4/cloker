@@ -59,7 +59,7 @@
 (defn run-hand [num-players]
   (let [deck (shuffle (new-deck))
         [hands deck] (draw-hands num-players deck)
-        [board _] (draw 5 deck)
+        [board _] (draw board-size deck)
         ratings (for [[i hand] (enumerate hands)]
                   {:player {:id (inc i) :hand hand}
                    :rating (rate-hand (concat hand board))})]

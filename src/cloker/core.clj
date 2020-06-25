@@ -26,6 +26,6 @@
       (->Card rank suit))))
 
 (defn -main
-  "I don't do a whole lot ... yet."
+  "Simulate 1,000 hands with 4 players and show a summary of the results."
   [& args]
   (run-hands))

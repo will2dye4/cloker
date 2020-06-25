@@ -224,24 +224,39 @@
           (str rating " " (apply list participating-cards))))))
 
 (defn- hand-rating [hand-type cards]
-  (let [participants (participating-cards (key hand-type) cards)
-        num-kickers (- hand-size (count participants))
-        kickers (if (zero? num-kickers)
-                  []
-                  (->> cards
-                       (excluding participants)
-                       sort
-                       reverse
-                       (take num-kickers)
-                       vec))]
-    (HandRating. cards (val hand-type) participants kickers)))
+  (when-let [participants (participating-cards (key hand-type) cards)]
+    (let [num-kickers (- hand-size (count participants))
+          kickers (if (zero? num-kickers)
+                    []
+                    (->> cards
+                         (excluding participants)
+                         sort
+                         reverse
+                         (take num-kickers)
+                         vec))]
+      (HandRating. cards (val hand-type) participants kickers))))
 
 (defn rate-hand [cards]
   (->> hand-types
        reverse
        (map #(hand-rating % cards))
-       (remove (comp nil? :participating-cards))
+       (remove nil?)
        first))
 
 (defn has-hand? [hand-type cards]
   (boolean (participating-cards hand-type cards)))
+
+(defn has-draw? [hand-type cards]
+  (case hand-type
+    :flush (has-flush-draw? cards)
+    :straight (has-straight-draw? cards)
+    false))
+
+(def ^:private eligible-for-draw (set (take 5 hand-type-keys)))
+
+(defn check-draws [cards hand-type]
+  (if (eligible-for-draw (:key hand-type))
+    (->> [:flush :straight]
+         (filter #(has-draw? % cards))
+         (map hand-types))
+    []))

@@ -41,11 +41,14 @@
 
 (make-printable Card)
 
+(defn sort-cards [cards]
+  (-> cards sort reverse vec))
+
 (defn card [rank suit]
   (Card. (ranks rank) (suits suit)))
 
 (defn pluralize-rank [card]
-  (let [rank (:rank card)]
+  (when-let [rank (:rank card)]
     (if (= rank (ranks :6))
       "sixes"
       (str (:name rank) "s"))))
@@ -57,12 +60,17 @@
 
 (defn draw
   ([deck] [(first deck) (vec (rest deck))])
-  ([n deck] [(vec (take n deck)) (vec (drop n deck))]))
+  ([n deck] (draw n deck true))
+  ([n deck sort?]
+   (let [cards (take n deck)
+         cards (if sort? (sort-cards cards) (vec cards))
+         deck (vec (drop n deck))]
+     [cards deck])))
 
 (defn draw-hands [n deck]
   (let [num-cards (* num-hole-cards n)
         [top-cards deck] (draw num-cards deck)
-        hands (mapv (comp vec reverse sort) (partition num-hole-cards top-cards))]
+        hands (mapv sort-cards (partition num-hole-cards top-cards))]
     [hands deck]))
 
 (defn add [deck cards]
