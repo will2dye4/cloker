@@ -1,6 +1,6 @@
 (ns cloker.game
   (:require [clojure.string :as str]
-            [cloker.cards :refer [draw draw-hands new-deck]]
+            [cloker.cards :refer [add draw draw-hands new-deck]]
             [cloker.constants :refer [hand-size]]
             [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
             [cloker.utils :refer :all]))
@@ -16,9 +16,9 @@
        (partition-by (comp hand-rating-sort-key :rating))
        last))
 
-(defrecord Hand [pot flop turn river])
+(defrecord Hand [pot flop turn river muck])
 
-(defn new-hand [] (Hand. 0 nil nil nil))
+(defn new-hand [] (Hand. 0 nil nil nil []))
 
 (defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
 
@@ -84,7 +84,9 @@
 
 (defn fold [game player]
   (println (str "--> Player " (:id player) " folds"))
-  (update-player game player dissoc :hand))
+  (-> game
+      (update-in [:current-hand :muck] concat (:hand player))
+      (update-player player dissoc :hand)))
 
 (defn all-in-or-fold [game player]
   (if (pos? (:chips player))  ;; all in
@@ -98,10 +100,12 @@
     (check-bet player amount) (bet game player amount)
     :else (all-in-or-fold game player)))
 
+(defn index-relative-to-dealer [relative-index game]
+  ;; use (count (:hands game)) as a counter that increments after each hand
+  (mod (+ (count (:hands game)) relative-index) (count (players game))))
+
 (defn player-at-index-relative-to-dealer [relative-index game]
-  (let [players (players game)
-        index (mod (+ (count (:hands game)) relative-index) (count players))]
-    (nth players index)))
+  (nth (players game) (index-relative-to-dealer relative-index game)))
 
 (def dealer (partial player-at-index-relative-to-dealer 0))
 
@@ -120,7 +124,7 @@
 (defn num-players-in-hand [game] (count (players-in-hand game)))
 
 (defn collect-ante-and-blinds [game]
-  (println "======== Ante / Blinds ========")
+  (println "============= Ante / Blinds =============")
   (loop [players (players game)
          game game]
     (if-let [player (first players)]
@@ -148,7 +152,11 @@
                          (str rating " (" (str/capitalize (str/join ", " draws)) ")")
                          rating)
                        rating)))]
-      (println (format "%s\t%s\t%d\t%s" (str "Player " id) hand chips (or rating ""))))))
+      (println (format "%-10s\t%-10s\t%,6d\t  %s"
+                       (str "Player " id)
+                       (str hand)
+                       chips
+                       (or rating ""))))))
 
 (defn- start-of-round-bets [game]
   (let [initial-bets (map-keys (constantly 0) (players game))
@@ -164,7 +172,7 @@
 
 (defn round-betting-state [game]
   (let [relative-index (if (pre-flop? game) 3 1)
-        players (rotate relative-index (players-in-hand game))]
+        players (rotate (index-relative-to-dealer relative-index game) (players-in-hand game))]
     (merge {:players players, :last-caller (first players)}
            (start-of-round-bets game))))
 
@@ -201,7 +209,6 @@
     (big-blind-player game) :big-blind
     nil))
 
-;; TODO - why is the pre-flop betting not working when playing multiple hands with the same game?
 (defn round-of-betting [game]
   (loop [game game
          state (round-betting-state game)
@@ -241,7 +248,7 @@
   (when-let [current-hand (:current-hand game)]
     (let [board (board current-hand)]
       (when-not (empty? board)
-        (println (format "%-20s\tPot: %d" board (:pot current-hand))))))
+        (println (format "%-20s\tPot: %,d" board (:pot current-hand))))))
   game)
 
 (defn betting-rounds [game]
@@ -250,7 +257,7 @@
     (if-let [[round {:keys [title]}] (first rounds)]
       (if (> (num-players-in-hand game) 1)
         (do
-          (println (str "\n========== " title " =========="))
+          (println (str "\n================== " title " =================="))
           (let [game (-> game
                          (assoc-in [:current-hand :round] round)
                          deal-cards
@@ -260,11 +267,14 @@
         game)
       game)))
 
-(defn award-pot [game player]
-  (let [pot (get-in game [:current-hand :pot])]
-    (-> game
-        (update-player player update :chips + pot)
-        (update-player player update :wins inc))))
+(defn award-pot [game players]
+  (if (= 1 (count players))
+    (let [player (first players)
+          pot (get-in game [:current-hand :pot])]
+        (-> game
+            (update-player player update :chips + pot)
+            (update-player player update :wins inc)))
+    game))  ;; TODO - split pot in this case
 
 (defn show-winner-info [winner-ratings]
   (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]
@@ -272,27 +282,37 @@
       (println (format "Player %d %s with %s" (:id player) verb rating)))))
 
 (defn award-winnings [game]
-  (if (= 1 (num-players-in-hand game))
-    (let [winner (first (players-in-hand game))]
-      (println "\n======== Hand Finished ========")
-      (println (str "Player " (:id winner) " wins"))
-      (award-pot game winner))
-    (let [board (current-board game)
-          ratings (for [player (players game)] {:player player :rating (rate-hand (concat (:hand player) board))})
-          winner-ratings (winners ratings)]
-      (println "\n======== Showdown ========")
-      (show-winner-info winner-ratings)
-      (if (= 1 (count winner-ratings))
-        (award-pot game (:player (first winner-ratings)))
-        game))))  ;; TODO - split pot in this case
+  (let [board (current-board game)
+        ratings (for [player (players game)
+                      :let [hand (:hand player)]
+                      :when hand]
+                  {:player player :rating (rate-hand (concat hand board))})
+        winners (winners ratings)]
+    (if (= 1 (num-players-in-hand game))
+      (let [winner (:player (first winners))]
+        (println "\n============= Hand Finished =============")
+        (println (str "Player " (:id winner) " wins")))
+      (do
+        (println "\n================ Showdown ================")
+        (show-winner-info winners)))
+    (-> game
+        (award-pot (map :player winners))
+        (assoc-in [:current-hand :winners] winners))))
 
-(defn recycle-cards [game] game)  ;; TODO - put all hands and muck back into deck
+(defn recycle-cards [game]
+  (let [{:keys [current-hand]} game
+        hands (->> (players game)
+                   (map :hand)
+                   (keep identity)
+                   flatten)
+        cards (concat (:muck current-hand) (board current-hand) hands)]
+    (update game :deck add cards)))
 
 (defn conclude-hand [game]
   (-> game
       award-winnings
       recycle-cards
-      (update :hands conj (:current-hand game))
+      (#(update % :hands conj (:current-hand %)))
       (dissoc :current-hand)))
 
 (defn play-hand [game]
