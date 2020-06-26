@@ -1,7 +1,8 @@
 (ns cloker.game
-  (:require [clojure.string :as str]
-            [cloker.cards :refer [add draw draw-hands new-deck]]
+  (:require [cloker.cards :refer [add draw draw-hands new-deck]]
+            [cloker.cli :refer [get-player-action show-player-info show-winner-info]]
             [cloker.constants :refer [hand-size]]
+            [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
             [cloker.utils :refer :all]))
 
@@ -22,7 +23,7 @@
 
 (defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
 
-(defn new-player [id] {:id id :chips 10000 :wins 0})
+(defn new-player [id] {:id id :name (str "Player " id) :chips 10000 :wins 0})
 
 (defrecord Game [ante small-blind big-blind players deck hands])
 
@@ -74,16 +75,14 @@
             (assoc :deck deck)
             (assoc-in [:current-hand round] cards))))))
 
-(defn check-bet [player amount] (<= amount (:chips player)))
-
 (defn bet [game player amount]
-  (println (str "--> Player " (:id player) " bets " amount))
+  (println (str "--> " (:name player) " bets " amount))
   (-> game
       (update-player player update :chips - amount)
       (update-in [:current-hand :pot] + amount)))
 
 (defn fold [game player]
-  (println (str "--> Player " (:id player) " folds"))
+  (println (str "--> " (:name player) " folds"))
   (-> game
       (update-in [:current-hand :muck] concat (:hand player))
       (update-player player dissoc :hand)))
@@ -134,29 +133,6 @@
                                  :else 0))]
         (recur (rest players) (bet-or-fold game player amount-owed)))
       game)))
-
-(defn show-player-info
-  ([player] (show-player-info player nil))
-  ([player extra-cards] (show-player-info player extra-cards true))
-  ([player extra-cards check-for-draws?]
-    (let [{:keys [hand id chips]} player
-          rating (when extra-cards
-                   (let [cards (concat hand extra-cards)
-                         hand-type (:hand-type (rate-hand cards))
-                         rating (:name hand-type)]
-                     (if check-for-draws?
-                       (if-let [draws (->> hand-type
-                                           (check-draws cards)
-                                           (map #(str % " draw"))
-                                           seq)]
-                         (str rating " (" (str/capitalize (str/join ", " draws)) ")")
-                         rating)
-                       rating)))]
-      (println (format "%-10s\t%-10s\t%,6d\t  %s"
-                       (str "Player " id)
-                       (str hand)
-                       chips
-                       (or rating ""))))))
 
 (defn- start-of-round-bets [game]
   (let [initial-bets (map-keys (constantly 0) (players game))
@@ -224,7 +200,7 @@
               actions (available-actions game player current-bet)
               position (player-position game player)
               player-bet (player-bets player)
-              action (or (actions :call) :check)]
+              {:keys [action amount]} (get-player-action player actions position current-bet player-bet)]
           (cond
             (= :fold action) (recur (fold game player) state players)
             (= :call action) (let [game (bet game player (- current-bet player-bet))
@@ -232,13 +208,12 @@
                                              (assoc-in [:player-bets player] current-bet)
                                              (assoc :last-caller player))]
                                (recur game state players))
-            (#{:bet :raise} action) (let [bet (:big-blind game)    ;; TODO
-                                               game (bet game player (- bet player-bet))
-                                               state (-> state
-                                                         (assoc-in [:player-bets player] current-bet)
-                                                         (assoc :current-bet bet)
-                                                         (assoc :last-raiser player))]
-                                           (recur game state players))
+            (#{:bet :raise} action) (let [game (bet game player (- amount player-bet))
+                                          state (-> state
+                                                    (assoc-in [:player-bets player] amount)
+                                                    (assoc :current-bet amount)
+                                                    (assoc :last-raiser player))]
+                                      (recur game state players))
             (and (= :check action)
                  (pre-flop? game)
                  (= player (big-blind-player game))) game
@@ -276,11 +251,6 @@
             (update-player player update :wins inc)))
     game))  ;; TODO - split pot in this case
 
-(defn show-winner-info [winner-ratings]
-  (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]
-    (doseq [{:keys [player rating]} winner-ratings]
-      (println (format "Player %d %s with %s" (:id player) verb rating)))))
-
 (defn award-winnings [game]
   (let [board (current-board game)
         ratings (for [player (players game)
@@ -291,7 +261,7 @@
     (if (= 1 (num-players-in-hand game))
       (let [winner (:player (first winners))]
         (println "\n============= Hand Finished =============")
-        (println (str "Player " (:id winner) " wins")))
+        (println (str (:name winner) " wins")))
       (do
         (println "\n================ Showdown ================")
         (show-winner-info winners)))
