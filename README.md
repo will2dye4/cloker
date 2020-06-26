@@ -112,7 +112,8 @@ See the statistics for the outcomes of multiple simulated hands with the `hand-s
 By default, this will simulate 1,000 hands with four players in each hand. The entire board
 will be dealt (flop, turn, and river) and each player's hand will be evaluated. (There is no betting.)
 After simulating all hands, a summary of outcomes will be printed, along with the strength
-of each hand type, i.e., the percentage of the total number of hands that that hand type won the hand.
+of each hand type, i.e., the percentage of the total number of times the hand type occurred that
+that hand type won the hand.
 
 Optional keyword arguments:
 * `:n` - the number of hands to simulate (default: 1,000)
