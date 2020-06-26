@@ -145,11 +145,11 @@
      :last-raiser raiser}))
 
 (defn round-betting-state [game]
-  (let [relative-index (if (pre-flop? game) 3 1)
-        player-ids (->> game
-                        players-in-hand
-                        (map :id)
-                        (rotate (index-relative-to-dealer relative-index game)))]
+  (let [relative-index (if (pre-flop? game) 3 1)  ;; put player to act first at the front
+        player-ids (->> (players game)
+                        (rotate (index-relative-to-dealer relative-index game))
+                        (remove (comp nil? :hand))
+                        (map :id))]
     (merge {:player-ids player-ids, :last-caller (first player-ids)}
            (start-of-round-bets game))))
 
