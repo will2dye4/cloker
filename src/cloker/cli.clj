@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws rate-hand]]
-            [cloker.utils :refer [input]]))
+            [cloker.utils :refer :all]))
 
 (defn show-player-info
   ([player] (show-player-info player nil))
@@ -27,6 +27,37 @@
   (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]
     (doseq [{:keys [player rating]} winner-ratings]
       (println (format "%s %s with %s" (:name player) verb rating)))))
+
+(def ^:const heading-width 42)
+
+(def ^:private format-percentage (partial format "(%.2f%%)"))
+
+(defn- format-line [name occurrences frequency]
+  (format "%16s %,8d %16s" name occurrences (format-percentage frequency)))
+
+(defn show-outcomes [hand-freqs key]
+  (let [heading (str ({:total "All" :wins "Winning"} key) " Outcomes")
+        sum-field (fn [field] (reduce + (map #(get-in (val %) [key field]) hand-freqs)))
+        total-outcomes (sum-field :occurrences)
+        frequency-total (sum-field :frequency)]
+    (println (center-heading heading heading-width))
+    (doseq [[hand-type counts] hand-freqs]
+      (let [name (:name hand-type)
+            occurrences (get-in counts [key :occurrences])
+            frequency (get-in counts [key :frequency])]
+        (println (format-line name occurrences frequency))))
+    (println (repeat-char \- heading-width))
+    (println (format-line "Total" total-outcomes frequency-total))))
+
+(defn show-hand-strength [hand-freqs]
+  (println (center-heading "Hand Strength" (+ 8 heading-width)))
+  (doseq [[hand-type counts] hand-freqs]
+    (let [name (:name hand-type)
+          total (get-in counts [:total :occurrences])
+          wins (get-in counts [:wins :occurrences])
+          ratio (format "%,d / %,d" wins total)
+          win-frequency (format-percentage (:hand-won-frequency counts))]
+      (println (format "%16s %18s %14s" name ratio win-frequency)))))
 
 (def ^:private position-strs {:dealer "D" :big-blind "BB" :small-blind "SB"})
 

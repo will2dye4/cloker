@@ -2,6 +2,7 @@
   (:require [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
             [cloker.cards :refer :all]
+            [cloker.cli :refer [show-hand-strength show-outcomes]]
             [cloker.game :refer :all]
             [cloker.rating :refer :all]
             [cloker.stats :refer :all]
@@ -36,8 +37,16 @@
           (recur game)))))
   (println "Goodbye!"))
 
+(defn hand-stats [& {:keys [n num-players] :or {n 1000 num-players 4}}]
+  (println (format "Simulating %,d hands with %d players...\n" n num-players))
+  (let [hand-freqs (run-hands n num-players)]
+    (show-outcomes hand-freqs :total)
+    (println)
+    (show-outcomes hand-freqs :wins)
+    (println)
+    (show-hand-strength hand-freqs)))
+
 (defn -main
-  "Simulate 1,000 hands with 4 players and show a summary of the results."
+  "Play an interactive game of poker."
   [& args]
-  (play-game)
-  #_(run-hands))
+  (play-game))

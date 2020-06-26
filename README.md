@@ -108,7 +108,7 @@ Goodbye!
 
 ## Simulating Hands
 
-See the statistics for the outcomes of multiple simulated hands with the `run-hands` function.
+See the statistics for the outcomes of multiple simulated hands with the `hand-stats` function.
 By default, this will simulate 1,000 hands with four players in each hand. The entire board
 will be dealt (flop, turn, and river) and each player's hand will be evaluated. (There is no betting.)
 After simulating all hands, a summary of outcomes will be printed, along with the strength
@@ -133,7 +133,9 @@ Java HotSpot(TM) 64-Bit Server VM 1.8.0_77-b03
     Exit: Control+D or (exit) or (quit)
  Results: Stored in vars *1, *2, *3, an exception in *e
 
-cloker.core=> (run-hands)
+cloker.core=> (hand-stats)
+Simulating 1,000 hands with 4 players...
+
 ============== All Outcomes ==============
        High card      515         (12.88%)
             Pair    1,698         (42.45%)
