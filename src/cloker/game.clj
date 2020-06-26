@@ -74,7 +74,10 @@
             (assoc-in [:current-hand round] cards))))))
 
 (defn bet [game player amount]
-  (println (format "--> %s bets %,d" (:name player) amount))
+  (let [{:keys [chips name]} player]
+    (if (= amount chips)
+      (println (format "--> %s is all in" name))
+      (println (format "--> %s bets %,d" name amount))))
   (-> game
       (update-player player update :chips - amount)
       (update-in [:current-hand :pot] + amount)))
@@ -86,9 +89,10 @@
       (update-player player dissoc :hand)))
 
 (defn all-in-or-fold [game player]
-  (if (pos? (:chips player))  ;; all in
-    (bet game player (:chips player))
-    (fold game player)))  ;; TODO - also remove the player entirely???
+  (let [{:keys [chips]} player]
+    (if (pos? chips)  ;; all in
+      (bet game player chips)
+      (fold game player))))
 
 (defn bet-or-fold [game player amount]
   {:pre [(>= amount 0)]}
@@ -174,7 +178,8 @@
 (defn available-actions [game player current-bet]
   (let [{:keys [chips]} player
         actions (if (or (zero? current-bet)
-                        (and (pre-flop? game)
+                        (and (pos? chips)
+                             (pre-flop? game)
                              (is-big-blind? game player)
                              (= current-bet (:big-blind game))))
                   [:check :bet]
@@ -284,12 +289,25 @@
         cards (concat (:muck current-hand) (board current-hand) hands)]
     (update game :deck add cards)))
 
+(defn remove-busted-players [game]
+  (update-players game (filter (comp pos? :chips) (players game))))
+
+(defn show-standings [game]
+  (println)
+  (doseq [{:keys [chips name wins]} (players game)
+          :let [chips (format "%,8d" chips)
+                wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
+    (println (format "%s\t%s\t%s" name chips wins)))
+  (println))
+
 (defn conclude-hand [game]
   (-> game
       award-winnings
       recycle-cards
+      remove-busted-players
       (#(update % :hands conj (:current-hand %)))
-      (dissoc :current-hand)))
+      (dissoc :current-hand)
+      show-standings))
 
 (defn play-hand [game]
   (-> game
