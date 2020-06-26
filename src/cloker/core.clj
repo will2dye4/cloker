@@ -25,7 +25,19 @@
     (when (and rank suit)
       (->Card rank suit))))
 
+(defn play-game []
+  (println "Welcome! A new game is starting.\n")
+  (let [prompt "\nWould you like to play another hand? "]
+    (loop [game (new-game)]
+      (let [game (play-hand game)
+            response (-> (input prompt) str/trim str/lower-case)]
+        (when-not (#{"n" "no"} response)
+          (println)
+          (recur game)))))
+  (println "Goodbye!"))
+
 (defn -main
   "Simulate 1,000 hands with 4 players and show a summary of the results."
   [& args]
-  (run-hands))
+  (play-game)
+  #_(run-hands))

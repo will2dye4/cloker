@@ -58,3 +58,8 @@
           left-padding (int (/ padding 2))
           right-padding (if (odd? padding) (inc left-padding) left-padding)]
       (str (repeat-char \= left-padding) \space heading \space (repeat-char \= right-padding))))
+
+(defn input [prompt]
+  (print prompt)
+  (flush)
+  (or (read-line) ""))

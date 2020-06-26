@@ -1,7 +1,8 @@
 (ns cloker.cli
   (:require [clojure.string :as str]
             [cloker.player :refer [check-bet]]
-            [cloker.rating :refer [check-draws rate-hand]]))
+            [cloker.rating :refer [check-draws rate-hand]]
+            [cloker.utils :refer [input]]))
 
 (defn show-player-info
   ([player] (show-player-info player nil))
@@ -50,10 +51,7 @@
         actions (set action-names)
         prompt (format "[%,d] %s%s may %s: " current-bet (:name player) annotation (str/join ", " action-names))]
     (loop []
-      (print prompt)
-      (flush)
-      (let [user-action (or (read-line) "")
-            args (str/split user-action #"\s+")
+      (let [args (str/split (input prompt) #"\s+")
             verb (first args)]
         (cond
           (not (actions verb)) (do (println "Invalid action!") (recur))
