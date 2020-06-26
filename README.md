@@ -14,15 +14,17 @@ locally using [Leiningen](https://leiningen.org).
 
 Pyker currently only supports one variation of poker: [Texas hold 'em](https://en.wikipedia.org/wiki/Texas_hold_%27em).
 
-Start a game with the `play-game` function. By default, the game will have four players (who all start with
-10,000 chips), no ante, and blinds of 100 (small blind) and 200 (big blind). The game will deal a hand to all players 
-and prompt for input asking how each player should act at each stage of the game.
+Start a game with the `play-game` function. By default, the game will have four players
+(who all start with 10,000 chips), no ante, and blinds of 100 (small blind) and 200 (big blind).
+The game will deal a hand to all players and prompt for input asking how each player should act
+at each stage of the game.
 
-The game will tell you what actions are legal for a given player. For example, if the prompt says `Player 4 may fold,
-call, raise`, then you may type `fold` to fold Player 4's hand, `call` to call the current bet, or `raise N` to raise
-the current bet by `N` chips. (You may also say `raise to N` to raise the current bet to exactly `N` chips.) Betting
-works the same: type `bet N` to make an initial bet of `N` chips. The other option that is sometimes available is `check`,
-which means to pass the action to the next player without folding or betting (only allowed when there are no previous
+The game will tell you what actions are legal for a given player. For example, if the prompt says
+`Player 4 may fold, call, raise`, then you may type `fold` to fold Player 4's hand, `call` to call
+the current bet, or `raise N` to raise the current bet by `N` chips. (You may also say `raise to N`
+to raise the current bet to exactly `N` chips.) Betting works the same: type `bet N` to make an 
+initial bet of `N` chips. The other option that is sometimes available is `check`, which means
+to pass the action to the next player without folding or betting (only allowed when there are no previous
 bets in the current round of betting).
 
 ### Example
@@ -102,4 +104,73 @@ Player 4	   8,400	0 wins
 
 Would you like to play another hand? no
 Goodbye!
+```
+
+## Simulating Hands
+
+See the statistics for the outcomes of multiple simulated hands with the `run-hands` function.
+By default, this will simulate 1,000 hands with four players in each hand. The entire board
+will be dealt (flop, turn, and river) and each player's hand will be evaluated. (There is no betting.)
+After simulating all hands, a summary of outcomes will be printed, along with the strength
+of each hand type, i.e., the percentage of the total number of hands that that hand type won the hand.
+
+Optional keyword arguments:
+* `:n` - the number of hands to simulate (default: 1,000)
+* `:num-players` - the number of players in each hand (default: 4)
+
+### Example
+
+```
+$ lein repl
+nREPL server started on port 52010 on host 127.0.0.1 - nrepl://127.0.0.1:52010
+REPL-y 0.4.4, nREPL 0.6.0
+Clojure 1.10.0
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_77-b03
+    Docs: (doc function-name-here)
+          (find-doc "part-of-name-here")
+  Source: (source function-name-here)
+ Javadoc: (javadoc java-object-or-class-here)
+    Exit: Control+D or (exit) or (quit)
+ Results: Stored in vars *1, *2, *3, an exception in *e
+
+cloker.core=> (run-hands)
+============== All Outcomes ==============
+       High card      515         (12.88%)
+            Pair    1,698         (42.45%)
+        Two pair    1,048         (26.20%)
+ Three of a kind      252          (6.30%)
+        Straight      230          (5.75%)
+           Flush      115          (2.88%)
+      Full house      131          (3.28%)
+  Four of a kind       10          (0.25%)
+  Straight flush        1          (0.03%)
+     Royal flush        0          (0.00%)
+------------------------------------------
+           Total    4,000        (100.00%)
+
+============ Winning Outcomes ============
+       High card        1          (0.10%)
+            Pair      176         (16.96%)
+        Two pair      311         (29.96%)
+ Three of a kind      150         (14.45%)
+        Straight      191         (18.40%)
+           Flush       87          (8.38%)
+      Full house      111         (10.69%)
+  Four of a kind       10          (0.96%)
+  Straight flush        1          (0.10%)
+     Royal flush        0          (0.00%)
+------------------------------------------
+           Total    1,038        (100.00%)
+
+================= Hand Strength ==================
+       High card            1 / 515        (0.19%)
+            Pair        176 / 1,698       (10.37%)
+        Two pair        311 / 1,048       (29.68%)
+ Three of a kind          150 / 252       (59.52%)
+        Straight          191 / 230       (83.04%)
+           Flush           87 / 115       (75.65%)
+      Full house          111 / 131       (84.73%)
+  Four of a kind            10 / 10      (100.00%)
+  Straight flush              1 / 1      (100.00%)
+     Royal flush              0 / 0        (0.00%)
 ```
