@@ -1,6 +1,6 @@
 (ns cloker.utils
   (:require [clojure.string :as str])
-  (:import (java.io Writer)))
+  (:import (java.io EOFException Writer)))
 
 (def enumerate (partial map-indexed vector))
 
@@ -62,4 +62,7 @@
 (defn input [prompt]
   (print prompt)
   (flush)
-  (or (read-line) ""))
+  (let [raw-input (read-line)]
+    (if (nil? raw-input)
+      (throw (EOFException.))
+      raw-input)))

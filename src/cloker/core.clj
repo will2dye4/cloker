@@ -7,6 +7,7 @@
             [cloker.rating :refer :all]
             [cloker.stats :refer :all]
             [cloker.utils :refer :all])
+  (:import (java.io EOFException))
   (:gen-class))
 
 (def deck (new-deck))
@@ -28,13 +29,15 @@
 
 (defn play-game []
   (println "Welcome! A new game is starting.\n")
-  (let [prompt "\nWould you like to play another hand? "]
-    (loop [game (new-game)]
-      (let [game (play-hand game)
-            response (-> (input prompt) str/trim str/lower-case)]
-        (when-not (#{"n" "no"} response)
-          (println)
-          (recur game)))))
+  (try
+    (let [prompt "\nWould you like to play another hand? "]
+      (loop [game (new-game)]
+        (let [game (play-hand game)
+              response (-> (input prompt) str/trim str/lower-case)]
+          (when-not (#{"n" "no"} response)
+            (println)
+            (recur game)))))
+    (catch EOFException _ (println)))  ;; force a newline
   (println "Goodbye!"))
 
 (defn hand-stats [& {:keys [n num-players] :or {n 1000 num-players 4}}]
