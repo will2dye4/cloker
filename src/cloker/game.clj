@@ -103,20 +103,20 @@
   ;; use (count (:hands game)) as a counter that increments after each hand
   (mod (+ (count (:hands game)) relative-index) (count (players game))))
 
-(defn player-at-index-relative-to-dealer [relative-index game]
-  (nth (players game) (index-relative-to-dealer relative-index game)))
+(defn player-id-at-index-relative-to-dealer [relative-index game]
+  (:id (nth (players game) (index-relative-to-dealer relative-index game))))
 
-(def dealer (partial player-at-index-relative-to-dealer 0))
+(def dealer-id (partial player-id-at-index-relative-to-dealer 0))
 
-(defn is-dealer? [game player] (= player (dealer game)))
+(defn is-dealer? [game player] (= (:id player) (dealer-id game)))
 
-(def small-blind-player (partial player-at-index-relative-to-dealer 1))
+(def small-blind-player-id (partial player-id-at-index-relative-to-dealer 1))
 
-(defn is-small-blind? [game player] (= player (small-blind-player game)))
+(defn is-small-blind? [game player] (= (:id player) (small-blind-player-id game)))
 
-(def big-blind-player (partial player-at-index-relative-to-dealer 2))
+(def big-blind-player-id (partial player-id-at-index-relative-to-dealer 2))
 
-(defn is-big-blind? [game player] (= player (big-blind-player game)))
+(defn is-big-blind? [game player] (= (:id player) (big-blind-player-id game)))
 
 (defn players-in-hand [game] (filter (comp not nil? :hand) (players game)))
 
@@ -135,89 +135,94 @@
       game)))
 
 (defn- start-of-round-bets [game]
-  (let [initial-bets (map-keys (constantly 0) (players game))
+  (let [initial-bets (map-keys (constantly 0) (keys (:players game)))
         [bets curr-bet raiser] (when (pre-flop? game)
-                                 (let [bb-player (big-blind-player game)
+                                 (let [bb-player-id (big-blind-player-id game)
                                        bb (:big-blind game)
-                                       sb-player (small-blind-player game)
+                                       sb-player-id (small-blind-player-id game)
                                        sb (:small-blind game)]
-                                   [{bb-player bb, sb-player sb} bb bb-player]))]
+                                   [{bb-player-id bb, sb-player-id sb} bb bb-player-id]))]
     {:player-bets (merge-with + initial-bets bets)
      :current-bet (or curr-bet 0)
      :last-raiser raiser}))
 
 (defn round-betting-state [game]
   (let [relative-index (if (pre-flop? game) 3 1)
-        players (rotate (index-relative-to-dealer relative-index game) (players-in-hand game))]
-    (merge {:players players, :last-caller (first players)}
+        player-ids (->> game
+                        players-in-hand
+                        (map :id)
+                        (rotate (index-relative-to-dealer relative-index game)))]
+    (merge {:player-ids player-ids, :last-caller (first player-ids)}
            (start-of-round-bets game))))
 
 (defn- next-step [game state i player]
-  (let [pre-flop? (pre-flop? game)
+  (let [{player-id :id hand :hand} player
+        pre-flop? (pre-flop? game)
         {:keys [current-bet last-caller last-raiser]} state]
     (cond
       (= 1 (num-players-in-hand game)) :return  ;; we have a winner
-      (nil? (:hand player)) :recur  ;; player has folded
+      (nil? hand) :recur  ;; player has folded
       (or (and pre-flop?
-               (= player last-raiser)
+               (= player-id last-raiser)
                (> current-bet (:big-blind game)))
           (and (not pre-flop?)
-               (or (= player last-raiser)
+               (or (= player-id last-raiser)
                    (and (pos? i)
                         (zero? current-bet)
-                        (= player last-caller))))) :return
+                        (= player-id last-caller))))) :return
       :else :continue)))
 
 (defn available-actions [game player current-bet]
   (let [{:keys [chips]} player
         actions (if (or (zero? current-bet)
                         (and (pre-flop? game)
-                             (= player (big-blind-player game))
+                             (is-big-blind? game player)
                              (= current-bet (:big-blind game))))
                   [:check :bet]
-                  (map (fn [[k f]] (when (f chips current-bet) k)) {:call >=, :raise >}))]
-    (apply conj #{:fold} actions)))
+                  (map (fn [[k f]] (when (f chips current-bet) k)) [[:call >=] [:raise >]]))]
+    (apply conj [:fold] actions)))
 
 (defn player-position [game player]
-  (condp = player
-    (dealer game) :dealer
-    (small-blind-player game) :small-blind
-    (big-blind-player game) :big-blind
+  (condp #(%1 game %2) player
+    is-dealer? :dealer
+    is-small-blind? :small-blind
+    is-big-blind? :big-blind
     nil))
 
 (defn round-of-betting [game]
   (loop [game game
          state (round-betting-state game)
-         players (enumerate (cycle (:players state)))]
+         player-ids (enumerate (cycle (:player-ids state)))]
     (let [{:keys [current-bet player-bets]} state
-          [i player] (first players)
-          players (rest players)]
+          [i player-id] (first player-ids)
+          player (get-in game [:players player-id])
+          player-ids (rest player-ids)]
       (case (next-step game state i player)
         :return game
-        :recur (recur game state players)
+        :recur (recur game state player-ids)
         (let [check-for-draws (not= :river (current-round game))
               _ (show-player-info player (current-board game) check-for-draws)
               actions (available-actions game player current-bet)
               position (player-position game player)
-              player-bet (player-bets player)
+              player-bet (player-bets player-id)
               {:keys [action amount]} (get-player-action player actions position current-bet player-bet)]
           (cond
-            (= :fold action) (recur (fold game player) state players)
+            (= :fold action) (recur (fold game player) state player-ids)
             (= :call action) (let [game (bet game player (- current-bet player-bet))
                                    state (-> state
-                                             (assoc-in [:player-bets player] current-bet)
-                                             (assoc :last-caller player))]
-                               (recur game state players))
+                                             (assoc-in [:player-bets player-id] current-bet)
+                                             (assoc :last-caller player-id))]
+                               (recur game state player-ids))
             (#{:bet :raise} action) (let [game (bet game player (- amount player-bet))
                                           state (-> state
-                                                    (assoc-in [:player-bets player] amount)
+                                                    (assoc-in [:player-bets player-id] amount)
                                                     (assoc :current-bet amount)
-                                                    (assoc :last-raiser player))]
-                                      (recur game state players))
+                                                    (assoc :last-raiser player-id))]
+                                      (recur game state player-ids))
             (and (= :check action)
                  (pre-flop? game)
-                 (= player (big-blind-player game))) game
-            :else (recur game state players)))))))
+                 (is-big-blind? game player)) game
+            :else (recur game state player-ids)))))))
 
 (defn show-board [game]
   (when-let [current-hand (:current-hand game)]
