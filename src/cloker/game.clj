@@ -1,6 +1,6 @@
 (ns cloker.game
   (:require [cloker.cards :refer [add draw draw-hands new-deck]]
-            [cloker.cli :refer [get-player-action show-player-info show-winner-info]]
+            [cloker.cli :refer :all]
             [cloker.constants :refer [hand-size]]
             [cloker.player :refer [check-bet new-player]]
             [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
@@ -21,8 +21,6 @@
 
 (defn new-hand [] (Hand. 0 nil nil nil []))
 
-(defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
-
 (defrecord Game [ante small-blind big-blind players deck hands])
 
 (defn ->player-map [players]
@@ -38,8 +36,6 @@
   (let [players (->player-map (or players (map new-player (map inc (range num-players)))))
         deck (shuffle (new-deck))]
     (Game. ante (first blinds) (second blinds) players deck [])))
-
-(defn players [game] (vals (:players game)))
 
 (defn current-board [game] (board (:current-hand game)))
 
@@ -230,13 +226,6 @@
                  (is-big-blind? game player)) game
             :else (recur game state player-ids)))))))
 
-(defn show-board [game]
-  (when-let [current-hand (:current-hand game)]
-    (let [board (board current-hand)]
-      (when-not (empty? board)
-        (println (format "%-20s\tPot: %,d" board (:pot current-hand))))))
-  game)
-
 (defn betting-rounds [game]
   (loop [game game
          rounds all-betting-rounds]
@@ -291,15 +280,6 @@
 
 (defn remove-busted-players [game]
   (update-players game (filter (comp pos? :chips) (players game))))
-
-(defn show-standings [game]
-  (println)
-  (doseq [{:keys [chips name wins]} (players game)
-          :let [chips (format "%,8d" chips)
-                wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
-    (println (format "%s\t%s\t%s" name chips wins)))
-  (println)
-  game)
 
 (defn conclude-hand [game]
   (-> game

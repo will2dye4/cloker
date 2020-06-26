@@ -4,6 +4,13 @@
             [cloker.rating :refer [check-draws rate-hand]]
             [cloker.utils :refer :all]))
 
+(defn show-board [game]
+  (when-let [current-hand (:current-hand game)]
+    (let [board (board current-hand)]
+      (when-not (empty? board)
+        (println (format "%-20s\tPot: %,d" board (:pot current-hand))))))
+  game)
+
 (defn show-player-info
   ([player] (show-player-info player nil))
   ([player extra-cards] (show-player-info player extra-cards true))
@@ -27,6 +34,15 @@
   (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]
     (doseq [{:keys [player rating]} winner-ratings]
       (println (format "%s %s with %s" (:name player) verb rating)))))
+
+(defn show-standings [game]
+  (println)
+  (doseq [{:keys [chips name wins]} (players game)
+          :let [chips (format "%,8d" chips)
+                wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
+    (println (format "%s\t%s\t%s" name chips wins)))
+  (println)
+  game)
 
 (def ^:const heading-width 42)
 
