@@ -298,7 +298,8 @@
           :let [chips (format "%,8d" chips)
                 wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
     (println (format "%s\t%s\t%s" name chips wins)))
-  (println))
+  (println)
+  game)
 
 (defn conclude-hand [game]
   (-> game
