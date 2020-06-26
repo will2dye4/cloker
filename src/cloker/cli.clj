@@ -37,7 +37,7 @@
       (when-let [amount (try
                           (Integer/parseInt (str/replace (last args) "," ""))
                           (catch NumberFormatException _ (println "Invalid amount - must be an integer")))]
-        (let [amount (+ amount (if (or raise-to? (zero? current-bet)) 0 current-bet))]
+        (let [amount (+ amount (if raise-to? 0 current-bet))]
           (cond
             (not (pos? amount)) (println "Invalid amount - must be positive")
             (and raise-to? (<= amount current-bet)) (println (format "Invalid amount - must be higher than the current bet (%,d)" current-bet))

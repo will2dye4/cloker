@@ -2,7 +2,7 @@
   (:require [cloker.cards :refer [add draw draw-hands new-deck]]
             [cloker.cli :refer [get-player-action show-player-info show-winner-info]]
             [cloker.constants :refer [hand-size]]
-            [cloker.player :refer [check-bet]]
+            [cloker.player :refer [check-bet new-player]]
             [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
             [cloker.utils :refer :all]))
 
@@ -22,8 +22,6 @@
 (defn new-hand [] (Hand. 0 nil nil nil []))
 
 (defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
-
-(defn new-player [id] {:id id :name (str "Player " id) :chips 10000 :wins 0})
 
 (defrecord Game [ante small-blind big-blind players deck hands])
 
@@ -76,13 +74,13 @@
             (assoc-in [:current-hand round] cards))))))
 
 (defn bet [game player amount]
-  (println (str "--> " (:name player) " bets " amount))
+  (println (format "--> %s bets %,d" (:name player) amount))
   (-> game
       (update-player player update :chips - amount)
       (update-in [:current-hand :pot] + amount)))
 
 (defn fold [game player]
-  (println (str "--> " (:name player) " folds"))
+  (println (format "--> %s folds" (:name player)))
   (-> game
       (update-in [:current-hand :muck] concat (:hand player))
       (update-player player dissoc :hand)))
@@ -172,6 +170,7 @@
                         (= player-id last-caller))))) :return
       :else :continue)))
 
+;; TODO - handle all in
 (defn available-actions [game player current-bet]
   (let [{:keys [chips]} player
         actions (if (or (zero? current-bet)
@@ -179,7 +178,9 @@
                              (is-big-blind? game player)
                              (= current-bet (:big-blind game))))
                   [:check :bet]
-                  (map (fn [[k f]] (when (f chips current-bet) k)) [[:call >=] [:raise >]]))]
+                  (->> [[>= :call] [> :raise]]
+                       (map (fn [[f k]] (when (f chips current-bet) k)))
+                       (remove nil?)))]
     (apply conj [:fold] actions)))
 
 (defn player-position [game player]
@@ -278,7 +279,7 @@
   (let [{:keys [current-hand]} game
         hands (->> (players game)
                    (map :hand)
-                   (keep identity)
+                   (remove nil?)
                    flatten)
         cards (concat (:muck current-hand) (board current-hand) hands)]
     (update game :deck add cards)))
