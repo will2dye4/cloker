@@ -33,10 +33,12 @@
     (let [prompt "\nWould you like to play another hand? "]
       (loop [game (new-cli-game mode)]
         (let [game (play-hand game)
-              response (-> (input prompt) str/trim str/lower-case)]
-          (when-not (#{"n" "no"} response)
-            (println)
-            (recur game)))))
+              players (players game)]
+          (if (= 1 (count players))
+            (println (str (:name (first players)) " has won the game!"))
+            (when-not (#{"n" "no"} (-> (input prompt) str/trim str/lower-case))
+              (println)
+              (recur game))))))
     (catch EOFException _ (println)))  ;; force a newline
   (println "Goodbye!"))
 

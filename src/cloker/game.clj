@@ -177,16 +177,18 @@
       :else :continue)))
 
 ;; TODO - handle all in
-(defn available-actions [game player current-bet]
-  (let [{:keys [chips]} player
+(defn available-actions [game player player-bet current-bet]
+  (let [player-chips (+ player-bet (:chips player))
         actions (if (or (zero? current-bet)
-                        (and (pos? chips)
+                        (and (pos? player-chips)
                              (pre-flop? game)
                              (is-big-blind? game player)
                              (= current-bet (:big-blind game))))
-                  [:check :bet]
+                  (if (pos? player-chips)
+                    [:check :bet]
+                    [:check])
                   (->> [[>= :call] [> :raise]]
-                       (map (fn [[f k]] (when (f chips current-bet) k)))
+                       (map (fn [[f k]] (when (f player-chips current-bet) k)))
                        (remove nil?)))]
     (apply conj [:fold] actions)))
 
@@ -209,9 +211,9 @@
         :return game
         :recur (recur game state player-ids)
         (let [_ (emit game (event :player-to-act game player))
-              actions (available-actions game player current-bet)
-              position (player-position game player)
               player-bet (player-bets player-id)
+              actions (available-actions game player player-bet current-bet)
+              position (player-position game player)
               {:keys [action amount]} ((:action-fn game) player actions position current-bet player-bet)]
           (cond
             (= :fold action) (recur (fold game player) state player-ids)

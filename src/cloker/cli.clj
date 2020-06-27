@@ -37,7 +37,7 @@
       (println (format "%s %s with %s" (:name player) verb rating)))))
 
 (defn show-standings [game]
-  (println)
+  (println "\n================ Standings ================")
   (doseq [{:keys [chips name wins]} (players game)
           :let [chips (format "%,8d" chips)
                 wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
