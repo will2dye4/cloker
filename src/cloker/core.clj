@@ -4,6 +4,7 @@
             [cloker.cards :refer :all]
             [cloker.cli :refer :all]
             [cloker.game :refer :all]
+            [cloker.odds :refer :all]
             [cloker.rating :refer :all]
             [cloker.stats :refer :all]
             [cloker.utils :refer :all])
