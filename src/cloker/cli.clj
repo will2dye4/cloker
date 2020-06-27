@@ -136,7 +136,7 @@
             (not (check-bet player (- amount player-bet))) (println (format "Invalid amount - %s only has %,d chips" (:name player) (:chips player)))
             :else {:action (keyword verb) :amount amount}))))))
 
-(defn get-player-action [player allowed-actions position current-bet player-bet]
+(defn cli-action-fn [player allowed-actions position current-bet player-bet]
   (let [annotation (if position (str " (" (position-strs position) ")") "")
         action-names (map name allowed-actions)
         actions (set action-names)
@@ -152,7 +152,7 @@
           :else {:action (keyword verb)})))))
 
 (defn single-player-action-fn [& args]
-  (let [f (if (= 1 (:id (first args))) get-player-action default-action-fn)]
+  (let [f (if (= 1 (:id (first args))) cli-action-fn default-action-fn)]
     (apply f args)))
 
 (defn new-cli-game
@@ -160,7 +160,7 @@
   ([mode]
     (let [action-fn (case mode
                       :auto default-action-fn
-                      :interactive get-player-action
+                      :interactive cli-action-fn
                       :single-player single-player-action-fn
                       (throw (IllegalArgumentException. (str "Unknown mode: " (pr-str mode)))))]
       (-> (new-game :action-fn action-fn)

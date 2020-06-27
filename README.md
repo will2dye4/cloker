@@ -14,10 +14,10 @@ locally using [Leiningen](https://leiningen.org).
 
 Pyker currently only supports one variation of poker: [Texas hold 'em](https://en.wikipedia.org/wiki/Texas_hold_%27em).
 
-Start a game with the `play-game` function. By default, the game will have four players
-(who all start with 10,000 chips), no ante, and blinds of 100 (small blind) and 200 (big blind).
-The game will deal a hand to all players and prompt for input asking how each player should act
-at each stage of the game.
+Start a game with the `play-game` function. The game will have four players (who all start with 
+10,000 chips), no ante, and blinds of 100 (small blind) and 200 (big blind). The game will deal
+a hand to all players and, by default, prompt for input asking how each player should act at each 
+stage of the game.
 
 The game will tell you what actions are legal for a given player. For example, if the prompt says
 `Player 4 may fold, call, raise`, then you may type `fold` to fold Player 4's hand, `call` to call
@@ -26,6 +26,14 @@ to raise the current bet to exactly `N` chips.) Betting works the same: type `be
 initial bet of `N` chips. The other option that is sometimes available is `check`, which means
 to pass the action to the next player without folding or betting (only allowed when there are no previous
 bets in the current round of betting).
+
+Optional keyword arguments:
+* `:mode` - Control the level of interactivity (default: `:interactive`). Three modes exist:
+  `:auto`, `:interactive`, and `:single-player`. Interactive mode is the default behavior described
+  above. In "auto" mode, every player will automatically call the big blind and check the remaining 
+  rounds, folding if they do not have enough chips. (This is a stand-in for an "AI" with any actual 
+  *intelligence*.) In single-player mode, all players except Player 1 are in auto mode, and you control
+  Player 1 in interactive mode. 
 
 ### Example
 
@@ -116,8 +124,8 @@ of each hand type, i.e., the percentage of the total number of times the hand ty
 that hand type won the hand.
 
 Optional keyword arguments:
-* `:n` - the number of hands to simulate (default: 1,000)
-* `:num-players` - the number of players in each hand (default: 4)
+* `:n` - Number of hands to simulate (default: 1,000)
+* `:num-players` - Number of players in each hand (default: 4)
 
 ### Example
 
