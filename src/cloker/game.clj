@@ -1,20 +1,10 @@
 (ns cloker.game
   (:require [cloker.cards :refer [add draw draw-hands new-deck]]
-            [cloker.constants :refer [hand-size]]
             [cloker.player :refer [check-bet new-player]]
-            [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
+            [cloker.rating :refer [check-draws rate-hand winners]]
             [cloker.utils :refer :all]))
 
-(def all-betting-rounds {:pre-flop {:title "Pre-Flop" :num-cards 0}
-                         :flop {:title "Flop" :num-cards 3}
-                         :turn {:title "Turn" :num-cards 1}
-                         :river {:title "River" :num-cards 1}})
-
-(defn winners [player-ratings]
-  (->> player-ratings
-       (sort-by :rating)
-       (partition-by (comp hand-rating-sort-key :rating))
-       last))
+(def ^:const cards-per-round {:pre-flop 0 :flop 3 :turn 1 :river 1})
 
 (defrecord Hand [pot flop turn river muck])
 
@@ -80,7 +70,7 @@
 
 (defn deal-cards [game]
   (let [round (current-round game)
-        num-cards (get-in all-betting-rounds [round :num-cards] 0)]
+        num-cards (cards-per-round round)]
     (if (zero? num-cards)
       game
       (let [[cards deck] (draw num-cards (:deck game))]
@@ -242,7 +232,7 @@
 
 (defn betting-rounds [game]
   (loop [game game
-         rounds (keys all-betting-rounds)]
+         rounds (keys cards-per-round)]
     (if-let [round (first rounds)]
       (if (> (num-players-in-hand game) 1)
         (let [game (-> game
@@ -265,12 +255,7 @@
     game))  ;; TODO - split pot in this case
 
 (defn award-winnings [game]
-  (let [board (current-board game)
-        ratings (for [player (players game)
-                      :let [hand (:hand player)]
-                      :when hand]
-                  {:player player :rating (rate-hand (concat hand board))})
-        winners (winners ratings)
+  (let [winners (winners (players game) (current-board game))
         showdown? (> (num-players-in-hand game) 1)]
     (emit game (event :win winners showdown?))
     (-> game

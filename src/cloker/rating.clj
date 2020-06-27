@@ -243,6 +243,21 @@
        (remove nil?)
        first))
 
+(defn rate-hands [players board]
+  (for [player players
+        :let [hand (:hand player)]
+        :when hand]
+    {:player player :rating (rate-hand (concat hand board))}))
+
+(defn winners
+  ([player-ratings]
+    (->> player-ratings
+         (sort-by :rating)
+         (partition-by (comp hand-rating-sort-key :rating))
+         last))
+  ([players board]
+    (winners (rate-hands players board))))
+
 (defn has-hand? [hand-type cards]
   (boolean (participating-cards hand-type cards)))
 

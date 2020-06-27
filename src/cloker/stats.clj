@@ -1,8 +1,7 @@
 (ns cloker.stats
   (:require [cloker.cards :refer :all]
             [cloker.constants :refer [board-size]]
-            [cloker.game :refer [winners]]
-            [cloker.rating :refer [hand-types rate-hand]]
+            [cloker.rating :refer [hand-types rate-hands winners]]
             [cloker.utils :refer :all]))
 
 (defn- results->outcomes [hand-results key]
@@ -30,9 +29,8 @@
   (let [deck (shuffle (new-deck))
         [hands deck] (draw-hands num-players deck)
         [board _] (draw board-size deck)
-        ratings (for [[i hand] (enumerate hands)]
-                  {:player {:id (inc i) :hand hand}
-                   :rating (rate-hand (concat hand board))})]
+        players (for [[i hand] (enumerate hands)] {:id (inc i) :hand hand})
+        ratings (rate-hands players board)]
     {:board board
      :ratings ratings
      :winners (winners ratings)}))
