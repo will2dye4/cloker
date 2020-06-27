@@ -66,7 +66,3 @@
     (if (nil? raw-input)
       (throw (EOFException.))
       raw-input)))
-
-(defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
-
-(defn players [game] (vals (:players game)))

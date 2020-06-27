@@ -2,7 +2,7 @@
   (:require [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
             [cloker.cards :refer :all]
-            [cloker.cli :refer [show-hand-strength show-outcomes]]
+            [cloker.cli :refer :all]
             [cloker.game :refer :all]
             [cloker.rating :refer :all]
             [cloker.stats :refer :all]
@@ -27,11 +27,11 @@
     (when (and rank suit)
       (->Card rank suit))))
 
-(defn play-game []
+(defn play-game [& {:keys [mode] :or {mode :interactive}}]
   (println "Welcome! A new game is starting.\n")
   (try
     (let [prompt "\nWould you like to play another hand? "]
-      (loop [game (new-cli-game)]
+      (loop [game (new-cli-game mode)]
         (let [game (play-hand game)
               response (-> (input prompt) str/trim str/lower-case)]
           (when-not (#{"n" "no"} response)

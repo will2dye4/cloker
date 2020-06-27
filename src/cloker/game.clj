@@ -1,6 +1,5 @@
 (ns cloker.game
   (:require [cloker.cards :refer [add draw draw-hands new-deck]]
-            [cloker.cli :refer :all]
             [cloker.constants :refer [hand-size]]
             [cloker.player :refer [check-bet new-player]]
             [cloker.rating :refer [check-draws hand-rating-sort-key rate-hand]]
@@ -21,25 +20,34 @@
 
 (defn new-hand [] (Hand. 0 nil nil nil []))
 
-(defrecord Game [ante small-blind big-blind players deck hands])
+(defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
+
+(defrecord Game [ante small-blind big-blind players deck hands action-fn])
+
+(defn default-action-fn [_ actions _ _ _]
+  (->> [:check :call :fold]
+       (keep #(when ((set actions) %) {:action %}))
+       first))
 
 (defn ->player-map [players]
   (->> players
        (map #(vector (:id %) %))
        (into (sorted-map))))
 
-(defn new-game [& {:keys [ante blinds players num-players]
-                   :or {ante 0, blinds [100 200], players nil, num-players 4}}]
+(defn new-game [& {:keys [ante blinds players num-players action-fn]
+                   :or {ante 0, blinds [100 200], players nil, num-players 4, action-fn default-action-fn}}]
   {:pre [(int? ante) (>= ante 0)
          (sequential? blinds) (= 2 (count blinds)) (every? int? blinds) (< (first blinds) (last blinds))
          (let [n (if players (count players) num-players)] (> n 1))]}
   (let [players (->player-map (or players (map new-player (map inc (range num-players)))))
         deck (shuffle (new-deck))]
-    (Game. ante (first blinds) (second blinds) players deck [])))
+    (Game. ante (first blinds) (second blinds) players deck [] action-fn)))
 
 (defn current-board [game] (board (:current-hand game)))
 
 (defn current-round [game] (get-in game [:current-hand :round]))
+
+(defn players [game] (vals (:players game)))
 
 (defn pre-flop? [game] (= :pre-flop (current-round game)))
 
@@ -61,10 +69,6 @@
   (when-let [handlers (:handlers game)]
     (doseq [handler handlers] (handler event)))
   game)
-
-;; TODO make this better
-(defn new-cli-game []
-  (register-event-handler (new-game) cli-event-handler))
 
 (defn deal-hand [game]
   (let [[hands deck] (draw-hands (count (players game)) (shuffle (:deck game)))
@@ -214,12 +218,11 @@
       (case (next-step game state i player)
         :return game
         :recur (recur game state player-ids)
-        (let [check-for-draws (not= :river (current-round game))
-              _ (show-player-info player (current-board game) check-for-draws)
+        (let [_ (emit game (event :player-to-act game player))
               actions (available-actions game player current-bet)
               position (player-position game player)
               player-bet (player-bets player-id)
-              {:keys [action amount]} (get-player-action player actions position current-bet player-bet)]
+              {:keys [action amount]} ((:action-fn game) player actions position current-bet player-bet)]
           (cond
             (= :fold action) (recur (fold game player) state player-ids)
             (= :call action) (let [game (bet game player (- current-bet player-bet))
@@ -233,9 +236,8 @@
                                                     (assoc :current-bet amount)
                                                     (assoc :last-raiser player-id))]
                                       (recur game state player-ids))
-            (and (= :check action)
-                 (pre-flop? game)
-                 (is-big-blind? game player)) game
+            (not= :check action) (throw (IllegalStateException. (str "Unknown action: " (pr-str action))))
+            (and (pre-flop? game) (is-big-blind? game player)) game
             :else (recur game state player-ids)))))))
 
 (defn betting-rounds [game]
@@ -269,20 +271,23 @@
                       :when hand]
                   {:player player :rating (rate-hand (concat hand board))})
         winners (winners ratings)
-        showdown? (= 1 (num-players-in-hand game))]
-    (emit game (event :end-hand winners showdown?))
+        showdown? (> (num-players-in-hand game) 1)]
+    (emit game (event :win winners showdown?))
     (-> game
         (award-pot (map :player winners))
         (assoc-in [:current-hand :winners] winners))))
 
 (defn recycle-cards [game]
   (let [{:keys [current-hand]} game
-        hands (->> (players game)
+        players (players game)
+        hands (->> players
                    (map :hand)
                    (remove nil?)
                    flatten)
         cards (concat (:muck current-hand) (board current-hand) hands)]
-    (update game :deck add cards)))
+    (-> game
+        (update :deck add cards)
+        (update-players (map #(dissoc %1 :hand) players)))))
 
 (defn remove-busted-players [game]
   (update-players game (filter (comp pos? :chips) (players game))))
@@ -294,7 +299,7 @@
       remove-busted-players
       (#(update % :hands conj (:current-hand %)))
       (dissoc :current-hand)
-      show-standings))
+      (#(emit % (event :end-hand %)))))
 
 (defn play-hand [game]
   (-> game

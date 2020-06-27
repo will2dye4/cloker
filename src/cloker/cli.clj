@@ -1,8 +1,9 @@
 (ns cloker.cli
   (:require [clojure.string :as str]
+            [cloker.game :refer :all]
             [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws rate-hand]]
-            [cloker.utils :refer :all]))
+            [cloker.utils :refer [center-heading input repeat-char]]))
 
 (defn show-board [game]
   (when-let [current-hand (:current-hand game)]
@@ -44,31 +45,6 @@
   (println)
   game)
 
-;; TODO - use multimethods?
-(defn cli-event-handler [event]
-  (let [[event-type & attrs] event]
-    (condp = event-type
-      :begin-hand (println "============= Ante / Blinds =============")
-      :begin-round (let [round (first attrs)
-                         title (if (= :pre-flop round) "Pre-Flop" (str/capitalize (name round)))]
-                     (println (str "\n================== " title " ==================")))
-      :bet (let [[player amount] attrs
-                 action (if (= amount (:chips player))
-                          "is all in"
-                          (format "bets %,d" amount))]
-             (println (format "--> %s %s" (:name player) action)))
-      :deal-round (let [[_ game] attrs] (show-board game))
-      :end-hand (let [[winners showdown?] attrs]
-                  (if showdown?
-                    (do
-                      (println "\n================ Showdown ================")
-                      (show-winner-info winners))
-                    (do
-                      (println "\n============= Hand Finished =============")
-                      (println (str (:name (:player (first winners))) " wins")))))
-      :fold (let [player (first attrs)]
-              (println (format "--> %s folds" (:name player)))))))
-
 (def ^:const heading-width 42)
 
 (def ^:private format-percentage (partial format "(%.2f%%)"))
@@ -99,6 +75,49 @@
           ratio (format "%,d / %,d" wins total)
           win-frequency (format-percentage (:hand-won-frequency counts))]
       (println (format "%16s %18s %14s" name ratio win-frequency)))))
+
+(defmulti cli-event-handler (fn [[event-type & attrs]] event-type))
+
+(defmethod cli-event-handler :begin-hand
+  [_] (println "============= Ante / Blinds ============="))
+
+(defmethod cli-event-handler :begin-round
+  [[_ round]]
+  (let [title (if (= :pre-flop round) "Pre-Flop" (str/capitalize (name round)))]
+    (println (str "\n================== " title " =================="))))
+
+(defmethod cli-event-handler :bet
+  [[_ player amount]]
+  (let [action (if (= amount (:chips player))
+                 "is all in"
+                 (format "bets %,d" amount))]
+    (println (format "--> %s %s" (:name player) action))))
+
+(defmethod cli-event-handler :deal-round
+  [[_ _ game]] (show-board game))
+
+(defmethod cli-event-handler :end-hand
+  [[_ game]] (show-standings game))
+
+(defmethod cli-event-handler :fold
+  [[_ player]] (println (format "--> %s folds" (:name player))))
+
+(defmethod cli-event-handler :player-to-act
+  [[_ game player]]
+  (let [check-for-draws? (#{:flop :turn} (current-round game))]
+    (show-player-info player (current-board game) check-for-draws?)))
+
+(defmethod cli-event-handler :win
+  [[_ winners showdown?]]
+  (if showdown?
+    (do
+      (println "\n================ Showdown ================")
+      (show-winner-info winners))
+    (do
+      (println "\n============= Hand Finished =============")
+      (println (str (:name (:player (first winners))) " wins")))))
+
+(defmethod cli-event-handler :default [_])  ;; do nothing
 
 (def ^:private position-strs {:dealer "D" :big-blind "BB" :small-blind "SB"})
 
@@ -131,3 +150,18 @@
                                     action
                                     (recur))
           :else {:action (keyword verb)})))))
+
+(defn single-player-action-fn [& args]
+  (let [f (if (= 1 (:id (first args))) get-player-action default-action-fn)]
+    (apply f args)))
+
+(defn new-cli-game
+  ([] (new-cli-game :interactive))
+  ([mode]
+    (let [action-fn (case mode
+                      :auto default-action-fn
+                      :interactive get-player-action
+                      :single-player single-player-action-fn
+                      (throw (IllegalArgumentException. (str "Unknown mode: " (pr-str mode)))))]
+      (-> (new-game :action-fn action-fn)
+          (register-event-handler cli-event-handler)))))
