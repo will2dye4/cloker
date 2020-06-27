@@ -6,22 +6,21 @@
             [cloker.utils :refer [map-keys map-vals percentage]]))
 
 (defn- player-win-counts [players board all-candidates]
-  (loop [player-wins (into {:tie 0} (map-keys (constantly 0) (keys players)))
-         all-candidates all-candidates]
-    (if-let [candidate-cards (first all-candidates)]
-      (let [potential-board (concat board candidate-cards)
-            winners (winners (vals players) potential-board)
-            key (if (> (count winners) 1)
+  (->> all-candidates
+       (pmap #(let [winners (winners players (concat board %))]
+                (if (> (count winners) 1)
                   :tie
-                  (:id (:player (first winners))))]
-        (recur (update player-wins key inc) (rest all-candidates)))
-      player-wins)))
+                  (:id (:player (first winners))))))
+       frequencies))
 
 (defn all-player-odds [game]
-  (let [board (current-board game)
-        deck (:deck game)
+  (let [{:keys [deck players]} game
+        board (current-board game)
         n (- board-size (count board))
         all-candidates (combinations deck n)
         num-candidates (count-combinations deck n)
-        win-counts (player-win-counts (:players game) board all-candidates)]
-    (map-vals #(percentage % num-candidates) win-counts)))
+        win-counts (player-win-counts (vals players) board all-candidates)]
+    (map-keys #(percentage (win-counts % 0) num-candidates) (conj (keys players) :tie))))
+
+(defn player-odds [game player]
+  ((all-player-odds game) (:id player)))

@@ -3,6 +3,7 @@
             [cloker.game :refer :all]
             [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws rate-hand]]
+            [cloker.odds :refer [player-odds]]
             [cloker.utils :refer [center-heading input repeat-char]]))
 
 (defn show-board [game]
@@ -12,24 +13,31 @@
         (println (format "%-20s\tPot: %,d" board (:pot current-hand))))))
   game)
 
-(defn show-player-info
-  ([player] (show-player-info player nil))
-  ([player extra-cards] (show-player-info player extra-cards true))
-  ([player extra-cards check-for-draws?]
-    (let [{:keys [hand name chips]} player
-          rating (when extra-cards
-                   (let [cards (concat hand extra-cards)
-                         hand-type (:hand-type (rate-hand cards))
-                         rating (:name hand-type)]
-                     (if check-for-draws?
-                       (if-let [draws (->> hand-type
-                                           (check-draws cards)
-                                           (map #(str % " draw"))
-                                           seq)]
-                         (str rating " (" (str/capitalize (str/join ", " draws)) ")")
-                         rating)
-                       rating)))]
-      (println (format "%-10s\t%-10s\t%,6d\t  %s" name (str hand) chips (or rating ""))))))
+(defn evaluate-draws [rating hand-type cards round]
+  (if (#{:flop :turn} round)
+    (if-let [draws (->> hand-type
+                        (check-draws cards)
+                        (map #(str % " draw"))
+                        seq)]
+      (str rating " (" (str/capitalize (str/join ", " draws)) ")")
+      rating)
+    rating))
+
+(defn evaluate-odds [rating game player]
+  (if (#{:flop :turn} (current-round game))
+    (format "%s (%d%%)" rating (int (player-odds game player)))
+    rating))
+
+(defn show-player-info [game player]
+  (let [{:keys [hand name chips]} player
+        board (current-board game)
+        rating (when board
+                 (let [cards (concat hand board)
+                       hand-type (:hand-type (rate-hand cards))]
+                   (-> (:name hand-type)
+                       (evaluate-draws hand-type cards (current-round game))
+                       (evaluate-odds game player))))]
+    (println (format "%-10s\t%-10s\t%,6d\t  %s" name (str hand) chips (or rating "")))))
 
 (defn show-winner-info [winner-ratings]
   (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]
@@ -103,9 +111,7 @@
   [[_ player]] (println (format "--> %s folds" (:name player))))
 
 (defmethod cli-event-handler :player-to-act
-  [[_ game player]]
-  (let [check-for-draws? (#{:flop :turn} (current-round game))]
-    (show-player-info player (current-board game) check-for-draws?)))
+  [[_ game player]] (show-player-info game player))
 
 (defmethod cli-event-handler :win
   [[_ winners showdown?]]
