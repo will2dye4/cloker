@@ -24,9 +24,13 @@
     rating))
 
 (defn evaluate-odds [rating game player]
-  (if (#{:flop :turn} (current-round game))
-    (format "%s (%d%%)" rating (int (player-odds game player)))
-    rating))
+  (let [round (current-round game)]
+    (if (#{:flop :turn :river} round)
+      (let [player-odds (player-odds game player)]
+        (if (= :river round)
+          (if-not (zero? player-odds) (format "%s (✓)" rating) rating)
+          (format "%s (%.0f%%)" rating player-odds)))
+      rating)))
 
 (defn show-player-info [game player]
   (let [{:keys [hand name chips]} player
