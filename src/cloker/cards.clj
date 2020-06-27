@@ -1,6 +1,6 @@
 (ns cloker.cards
-  (:require [cloker.utils :refer :all]
-            [cloker.constants :refer [num-hole-cards]]))
+  (:require [cloker.constants :refer [num-hole-cards]]
+            [cloker.utils :refer :all]))
 
 (defrecord Suit [value symbol]
   Comparable

@@ -1,8 +1,8 @@
 (ns cloker.game
   (:require [cloker.cards :refer [add draw draw-hands new-deck]]
             [cloker.player :refer [check-bet new-player]]
-            [cloker.rating :refer [check-draws rate-hand winners]]
-            [cloker.utils :refer :all]))
+            [cloker.rating :refer [winners]]
+            [cloker.utils :refer [enumerate map-keys rotate]]))
 
 (def ^:const cards-per-round {:pre-flop 0 :flop 3 :turn 1 :river 1})
 

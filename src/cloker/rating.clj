@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [cloker.cards :refer [pluralize-rank ranks]]
             [cloker.constants :refer [hand-size]]
-            [cloker.utils :refer :all]))
+            [cloker.utils :refer [consecutive-pairs enumerate keyword->name
+                                  make-printable sorted-map-by-value]]))
 
 (defn excluding [unwanted cards]
   (->> unwanted

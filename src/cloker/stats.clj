@@ -1,8 +1,8 @@
 (ns cloker.stats
-  (:require [cloker.cards :refer :all]
+  (:require [cloker.cards :refer [draw draw-hands new-deck]]
             [cloker.constants :refer [board-size]]
             [cloker.rating :refer [hand-types rate-hands winners]]
-            [cloker.utils :refer :all]))
+            [cloker.utils :refer [enumerate map-keys map-vals percentage]]))
 
 (defn- results->outcomes [hand-results key]
   (let [outcomes (flatten (map key hand-results))]
