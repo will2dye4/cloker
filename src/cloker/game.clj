@@ -51,6 +51,21 @@
                          (->player-map players)
                          players)))
 
+(defn event [event-type & attrs]
+  (apply conj [event-type] attrs))
+
+(defn register-event-handler [game handler]
+  (update game :handlers conj handler))
+
+(defn emit [game event]
+  (when-let [handlers (:handlers game)]
+    (doseq [handler handlers] (handler event)))
+  game)
+
+;; TODO make this better
+(defn new-cli-game []
+  (register-event-handler (new-game) cli-event-handler))
+
 (defn deal-hand [game]
   (let [[hands deck] (draw-hands (count (players game)) (shuffle (:deck game)))
         players (map #(assoc %1 :hand %2) (players game) hands)]
@@ -70,16 +85,13 @@
             (assoc-in [:current-hand round] cards))))))
 
 (defn bet [game player amount]
-  (let [{:keys [chips name]} player]
-    (if (= amount chips)
-      (println (format "--> %s is all in" name))
-      (println (format "--> %s bets %,d" name amount))))
+  (emit game (event :bet player amount))
   (-> game
       (update-player player update :chips - amount)
       (update-in [:current-hand :pot] + amount)))
 
 (defn fold [game player]
-  (println (format "--> %s folds" (:name player)))
+  (emit game (event :fold player))
   (-> game
       (update-in [:current-hand :muck] concat (:hand player))
       (update-player player dissoc :hand)))
@@ -121,7 +133,7 @@
 (defn num-players-in-hand [game] (count (players-in-hand game)))
 
 (defn collect-ante-and-blinds [game]
-  (println "============= Ante / Blinds =============")
+  (emit game (event :begin-hand))
   (loop [players (players game)
          game game]
     (if-let [player (first players)]
@@ -228,17 +240,16 @@
 
 (defn betting-rounds [game]
   (loop [game game
-         rounds all-betting-rounds]
-    (if-let [[round {:keys [title]}] (first rounds)]
+         rounds (keys all-betting-rounds)]
+    (if-let [round (first rounds)]
       (if (> (num-players-in-hand game) 1)
-        (do
-          (println (str "\n================== " title " =================="))
-          (let [game (-> game
-                         (assoc-in [:current-hand :round] round)
-                         deal-cards
-                         show-board
-                         round-of-betting)]
-            (recur game (rest rounds))))
+        (let [game (-> game
+                       (emit (event :begin-round round))
+                       (assoc-in [:current-hand :round] round)
+                       deal-cards
+                       (#(emit % (event :deal-round round %)))
+                       round-of-betting)]
+          (recur game (rest rounds)))
         game)
       game)))
 
@@ -257,14 +268,9 @@
                       :let [hand (:hand player)]
                       :when hand]
                   {:player player :rating (rate-hand (concat hand board))})
-        winners (winners ratings)]
-    (if (= 1 (num-players-in-hand game))
-      (let [winner (:player (first winners))]
-        (println "\n============= Hand Finished =============")
-        (println (str (:name winner) " wins")))
-      (do
-        (println "\n================ Showdown ================")
-        (show-winner-info winners)))
+        winners (winners ratings)
+        showdown? (= 1 (num-players-in-hand game))]
+    (emit game (event :end-hand winners showdown?))
     (-> game
         (award-pot (map :player winners))
         (assoc-in [:current-hand :winners] winners))))

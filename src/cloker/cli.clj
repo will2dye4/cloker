@@ -44,6 +44,31 @@
   (println)
   game)
 
+;; TODO - use multimethods?
+(defn cli-event-handler [event]
+  (let [[event-type & attrs] event]
+    (condp = event-type
+      :begin-hand (println "============= Ante / Blinds =============")
+      :begin-round (let [round (first attrs)
+                         title (if (= :pre-flop round) "Pre-Flop" (str/capitalize (name round)))]
+                     (println (str "\n================== " title " ==================")))
+      :bet (let [[player amount] attrs
+                 action (if (= amount (:chips player))
+                          "is all in"
+                          (format "bets %,d" amount))]
+             (println (format "--> %s %s" (:name player) action)))
+      :deal-round (let [[_ game] attrs] (show-board game))
+      :end-hand (let [[winners showdown?] attrs]
+                  (if showdown?
+                    (do
+                      (println "\n================ Showdown ================")
+                      (show-winner-info winners))
+                    (do
+                      (println "\n============= Hand Finished =============")
+                      (println (str (:name (:player (first winners))) " wins")))))
+      :fold (let [player (first attrs)]
+              (println (format "--> %s folds" (:name player)))))))
+
 (def ^:const heading-width 42)
 
 (def ^:private format-percentage (partial format "(%.2f%%)"))

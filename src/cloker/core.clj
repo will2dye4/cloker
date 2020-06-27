@@ -31,7 +31,7 @@
   (println "Welcome! A new game is starting.\n")
   (try
     (let [prompt "\nWould you like to play another hand? "]
-      (loop [game (new-game)]
+      (loop [game (new-cli-game)]
         (let [game (play-hand game)
               response (-> (input prompt) str/trim str/lower-case)]
           (when-not (#{"n" "no"} response)
