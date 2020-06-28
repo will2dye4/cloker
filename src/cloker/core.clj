@@ -55,4 +55,12 @@
 (defn -main
   "Play an interactive game of poker."
   [& args]
-  (play-game))
+  (condp = (vec args)
+    [] (play-game)
+    ["play"] (play-game)
+    ["play" "auto"] (play-game :mode :auto)
+    ["play" "interactive"] (play-game :mode :interactive)
+    ["play" "single-player"] (play-game :mode :single-player)
+    ["play" "solo"] (play-game :mode :single-player)
+    ["stats"] (hand-stats)
+    (println "Usage: lein run (play [auto|interactive|single-player]|stats")))
