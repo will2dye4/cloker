@@ -50,8 +50,8 @@
 
 (defn show-standings [game]
   (println "\n================ Standings ================")
-  (doseq [{:keys [chips name wins]} (players game)
-          :let [chips (format "%,8d" chips)
+  (doseq [{:keys [chips name wins]} (vals (merge (:players game) (:busted-players game)))
+          :let [chips (if (pos? chips) (format "%,8d" chips) "(Busted)")
                 wins (format "%,d %s" wins (if (= 1 wins) "win" "wins"))]]
     (println (format "%s\t%s\t%s" name chips wins)))
   (println)

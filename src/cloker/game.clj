@@ -12,7 +12,7 @@
 
 (defn board [hand] (vec (concat (:flop hand) (:turn hand) (:river hand))))
 
-(defrecord Game [ante small-blind big-blind players deck hands action-fn])
+(defrecord Game [ante small-blind big-blind players deck hands busted-players action-fn])
 
 (defn default-action-fn [_ actions _ _ _]
   (->> [:check :call :fold]
@@ -31,7 +31,7 @@
          (let [n (if players (count players) num-players)] (> n 1))]}
   (let [players (->player-map (or players (map new-player (map inc (range num-players)))))
         deck (shuffle (new-deck))]
-    (Game. ante (first blinds) (second blinds) players deck [] action-fn)))
+    (Game. ante (first blinds) (second blinds) players deck [] (sorted-map) action-fn)))
 
 (defn current-board [game] (board (:current-hand game)))
 
@@ -68,12 +68,24 @@
         (assoc :deck deck)
         (update-players players))))
 
+(defn muck-cards [game cards]
+  (update-in game [:current-hand :muck] concat cards))
+
+(defn burn-cards [n game]
+  (let [[cards deck] (draw n (:deck game))]
+    (-> game
+        (assoc :deck deck)
+        (muck-cards cards))))
+
+(def burn-one-card (partial burn-cards 1))
+
 (defn deal-cards [game]
   (let [round (current-round game)
         num-cards (cards-per-round round)]
     (if (zero? num-cards)
       game
-      (let [[cards deck] (draw num-cards (:deck game))]
+      (let [game (burn-one-card game)
+            [cards deck] (draw num-cards (:deck game))]
         (-> game
             (assoc :deck deck)
             (assoc-in [:current-hand round] cards))))))
@@ -87,7 +99,7 @@
 (defn fold [game player]
   (emit game (event :fold player))
   (-> game
-      (update-in [:current-hand :muck] concat (:hand player))
+      (muck-cards (:hand player))
       (update-player player dissoc :hand)))
 
 (defn all-in-or-fold [game player]
@@ -277,7 +289,16 @@
         (update-players (map #(dissoc %1 :hand) players)))))
 
 (defn remove-busted-players [game]
-  (update-players game (filter (comp pos? :chips) (players game))))
+  (loop [players (:players game)
+         game game]
+    (if-let [[player-id player] (first players)]
+      (let [game (if (pos? (:chips player))
+                   game
+                   (-> game
+                       (update :players dissoc player-id)
+                       (update :busted-players assoc player-id player)))]
+        (recur (rest players) game))
+      game)))
 
 (defn conclude-hand [game]
   (-> game
