@@ -4,7 +4,10 @@
             [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws rate-hand]]
             [cloker.odds :refer [player-odds]]
+            [cloker.outs :refer [player-draws]]
             [cloker.utils :refer [center-heading input repeat-char]]))
+
+(def ^:private show-player-draws true)
 
 (defn show-board [game]
   (when-let [current-hand (:current-hand game)]
@@ -35,13 +38,20 @@
 (defn show-player-info [game player]
   (let [{:keys [hand name chips]} player
         board (current-board game)
+        round (current-round game)
         rating (when board
                  (let [cards (concat hand board)
                        hand-type (:hand-type (rate-hand cards))]
                    (-> (:name hand-type)
-                       (evaluate-draws hand-type cards (current-round game))
+                       (evaluate-draws hand-type cards round)
                        (evaluate-odds game player))))]
-    (println (format "%-10s\t%-10s\t%,6d\t  %s" name (str hand) chips (or rating "")))))
+    (println (format "%-10s\t%-10s\t%,6d\t  %s" name (str hand) chips (or rating "")))
+    (when (and show-player-draws (#{:flop :turn} round))
+      (let [probability-key ({:flop :turn+river, :turn :turn->river} round)
+            draws (->> (player-draws hand board)
+                       (map #(format "%s (%.1f%%)" (clojure.core/name (:draw-type %)) (probability-key %)))
+                       (str/join ", "))]
+        (println (str "Draws: " (if (empty? draws) "None" draws)))))))
 
 (defn show-winner-info [winner-ratings]
   (let [verb (if (> (count winner-ratings) 1) "ties" "wins")]

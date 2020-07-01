@@ -22,25 +22,45 @@
 
 (def out-probabilities (map-vals #(apply new-probabilities %) probabilities))
 
-(def draw-types                                ;; Hand    Flop        Specific Outs
-  {:pocket-pair->set 2                         ;; 2♦︎ 2♣   Q♦ 9♠ 4♥    2♥ 2♠
-   :one-overcard 3                             ;; A♠ 8♦   9♣ 5♠ 2♦    A♣ A♦ A♥
-   :inside-straight-draw 4                     ;; J♥ 9♣   Q♠ 8♦ 4♣    10?
-   :two-pair->full-house 4                     ;; K♥ Q♠   K♣ Q♦ 5♠    K♠ K♦ Q♥ Q♣
-   :pair->two-pair-or-trips 5                  ;; A♣ Q♦   A♦ 10♣ 3♠   A♥ A♠ Q♥ Q♠ Q♣
-   :nothing->pair 6                            ;; 9♣ 7♦   J♣ 3♦ 2♠    9♥ 9♦ 9♠ 7♥ 7♠ 7♣
-   :two-overcards->overpair 6                  ;; A♦ J♥   10♣ 8♦ 2♠   A♥ A♣ A♠ J♦ J♣ J♠
-   :set->full-house-or-quads 7                 ;; 6♣ 6♦   J♣ 7♥ 6♠    J♣ J♦ J♥ 7♦ 7♣ 7♠ 6♥
-   :open-ended-straight-draw 8                 ;; 9♣ 8♦   10♥ 7♣ 3♠   J? 6?
-   :flush-draw 9                               ;; K♠ J♠   A♠ 6♠ 8♦    Q♠ 10♠ 9♠ 8♠ 7♠ 5♠ 4♠ 3♠ 2♠
-   :inside-straight-draw-and-two-overcards 10  ;; A♣ K♦   Q♥ 10♣ 2♠   A♦ A♥ A♠ K♥ K♣ K♠ J?
-   :inside-straight-and-flush-draw 12          ;; K♦ 9♦   J♦ Q♠ 3♦    Q♦ 10? 9♦ 8♦ 7♦ 6♦ 5♦ 4♦ 2♦
-   :open-ended-straight-and-flush-draw 15})    ;; K♥ Q♥   10♥ J♠ 4♥   A? J♥ 9? 8♥ 7♥ 6♥ 5♥ 3♥ 2♥
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;            Draw Type               # Outs    Hand      Flop             Specific Outs         ;;
+;; -------------------------------    ------   -----    ---------    -------------------------   ;;
+;; Pocket pair --> set                    2    2♦︎ 2♣    Q♦ 9♠ 4♥     2♥ 2♠                       ;;
+;; One overcard --> overpair              3    A♠ 8♦    9♣ 5♠ 2♦     A♣ A♦ A♥                    ;;
+;; Inside straight draw                   4    J♥ 9♣    Q♠ 8♦ 4♣     10?                         ;;
+;; Two pair --> full house                4    K♥ Q♠    K♣ Q♦ 5♠     K♠ K♦ Q♥ Q♣                 ;;
+;; Pair --> two pair or trips             5    A♣ Q♦    A♦ 10♣ 3♠    A♥ A♠ Q♥ Q♠ Q♣              ;;
+;; Nothing --> pair                       6    9♣ 7♦    J♣ 3♦ 2♠     9♥ 9♦ 9♠ 7♥ 7♠ 7♣           ;;
+;; Two overcards --> overpair             6    A♦ J♥    10♣ 8♦ 2♠    A♥ A♣ A♠ J♦ J♣ J♠           ;;
+;; Set --> full house or quads            7    6♣ 6♦    J♣ 7♥ 6♠     J♣ J♦ J♥ 7♦ 7♣ 7♠ 6♥        ;;
+;; Open-ended straight draw               8    9♣ 8♦    10♥ 7♣ 3♠    J? 6?                       ;;
+;; Flush draw                             9    K♠ J♠    A♠ 6♠ 8♦     Q♠ 10♠ 9♠ 8♠ 7♠ 5♠ 4♠ 3♠ 2♠ ;;
+;; Inside straight and flush draw        12    K♦ 9♦    J♦ Q♠ 3♦     Q♦ 10? 9♦ 8♦ 7♦ 6♦ 5♦ 4♦ 2♦ ;;
+;; Open-ended straight and flush draw    15    K♥ Q♥    10♥ J♠ 4♥    A? J♥ 9? 8♥ 7♥ 6♥ 5♥ 3♥ 2♥  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def draw-types  ;; values are ordered by preference (best to worst)
+  ;; 'match' means pairs, three of a kind, etc.
+  {:match [[:set->full-house-or-quads 7]
+           [:two-pair->full-house 4]
+           [:pair->two-pair-or-trips 5]
+           [:two-overcards->overpair 6]
+           [:one-overcard->overpair 3]
+           [:pocket-pair->set 2]
+           [:nothing->pair 6]]
+   ;; 'draw' means straight and/or flush draws
+   :draw [[:open-ended-straight-and-flush-draw 15]
+          [:inside-straight-and-flush-draw 12]
+          [:flush-draw 9]
+          [:open-ended-straight-draw 8]
+          [:inside-straight-draw 4]]})
 
 (def all-draws
-  (mapv
-    (fn [[type num-draws]]
-      (merge {:draw-type type :num-draws num-draws} (out-probabilities num-draws)))
+  (map-vals
+    #(mapv
+       (fn [[type num-draws]]
+         (merge {:draw-type type :num-draws num-draws} (out-probabilities num-draws)))
+       %)
     draw-types))
 
 (defn overcards [hand board]
@@ -48,39 +68,56 @@
     (fn [card] (every? #(pos? (compare (:rank card) (:rank %))) board))
     hand))
 
+(defn has-overpair? [hand board]
+  (pos? (->> [(concat hand board) board]
+             (map (comp vec sort highest-pair))
+             (apply compare))))
+
+(defn has-pocket-pair? [hand] (has-hand? :pair hand))
+
 (defn has-open-ended-straight-draw? [cards]
   (and (has-straight-draw? cards)
        (not (has-inside-straight-draw? cards))))
 
+(defn has-hand-from-hole-cards? [hand-type rated-hand-type board]
+  (and (= hand-type rated-hand-type)
+       (not (has-hand? hand-type board))))
+
 (defmulti has-draw-type? (fn [draw-type hand-type hand board] draw-type))
 
 (defmethod has-draw-type? :pocket-pair->set
-  [_ _ hand board]
-  (and (has-hand? :pair hand)
-       (not (has-hand? :three-of-a-kind (concat hand board)))))  ;; do we even need to check that there's no trips?
+  [_ hand-type hand _]
+  (and (= hand-type :pair)
+       (has-pocket-pair? hand)))
 
-(defmethod has-draw-type? :one-overcard
-  [_ _ hand board] (= 1 (count (overcards hand board))))
+(defmethod has-draw-type? :one-overcard->overpair
+  [_ _ hand board]
+  (and (= 1 (count (overcards hand board)))
+       (not (has-overpair? hand board))))
 
 (defmethod has-draw-type? :inside-straight-draw
   [_ _ hand board] (has-inside-straight-draw? (concat hand board)))
 
 (defmethod has-draw-type? :two-pair->full-house
-  [_ hand-type _ _] (= hand-type :two-pair))
+  [_ hand-type _ board] (has-hand-from-hole-cards? :two-pair hand-type board))
 
 (defmethod has-draw-type? :pair->two-pair-or-trips
-  [_ hand-type _ _] (= hand-type :pair))
+  [_ hand-type hand board]
+  (and (has-hand-from-hole-cards? :pair hand-type board)
+       (not (has-pocket-pair? hand))))
 
 (defmethod has-draw-type? :nothing->pair
-  [_ hand-type _ _] (= hand-type :high-card))
+  [_ hand-type hand board]
+  (and (zero? (count (overcards hand board)))
+       (= hand-type :high-card)))
 
 (defmethod has-draw-type? :two-overcards->overpair
-  [_ hand-type hand board]
-  (and (= hand-type :high-card)
-       (= 2 (count (overcards hand board)))))
+  [_ _ hand board]
+  (and (= 2 (count (overcards hand board)))
+       (not (has-overpair? hand board))))
 
 (defmethod has-draw-type? :set->full-house-or-quads
-  [_ hand-type _ _] (= hand-type :three-of-a-kind))
+  [_ hand-type _ board] (has-hand-from-hole-cards? :three-of-a-kind hand-type board))
 
 (defmethod has-draw-type? :open-ended-straight-draw
   [_ _ hand board]
@@ -106,9 +143,12 @@
     (and (has-open-ended-straight-draw? cards)
          (has-flush-draw? cards))))
 
-(defn player-draws [player board]
-  (let [{:keys [hand]} player
-        {:keys [hand-type]} (rate-hand (concat hand board))]
-    (->> all-draws
-         (map :draw-type)
-         (filter #(has-draw-type? % hand-type hand board)))))
+(defn player-draws [hand board]
+  (let [hand-type (:key (:hand-type (rate-hand (concat hand board))))
+        best-draws (for [draws (vals all-draws)]
+                     (->> draws
+                          (filter #(has-draw-type? (:draw-type %) hand-type hand board))
+                          first))]
+    (->> best-draws
+         flatten
+         (remove nil?))))
