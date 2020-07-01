@@ -60,6 +60,7 @@
     [] (play-game)
     ["play"] (play-game)
     ["play" "auto"] (play-game :mode :auto)
+    ["play" "cheat"] (play-game :mode :cheat)
     ["play" "interactive"] (play-game :mode :interactive)
     ["play" "single-player"] (play-game :mode :single-player)
     ["play" "solo"] (play-game :mode :single-player)

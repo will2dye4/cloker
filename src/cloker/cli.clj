@@ -7,8 +7,6 @@
             [cloker.outs :refer [player-draws]]
             [cloker.utils :refer [center-heading input repeat-char]]))
 
-(def ^:private show-player-draws true)
-
 (defn show-board [game]
   (when-let [current-hand (:current-hand game)]
     (let [board (board current-hand)]
@@ -36,17 +34,20 @@
       rating)))
 
 (defn show-player-info [game player]
-  (let [{:keys [hand name chips]} player
+  (let [{:keys [show-all-player-info? show-draws? show-odds?]} game
+        {chips :chips hand :hand name :name player-id :id} player
         board (current-board game)
         round (current-round game)
-        rating (when board
+        show-full-info? (or show-all-player-info? (= player-id 1))
+        player-hand (str (if show-full-info? hand '[XX XX]))
+        rating (when (and show-full-info? board)
                  (let [cards (concat hand board)
                        hand-type (:hand-type (rate-hand cards))]
                    (-> (:name hand-type)
                        (evaluate-draws hand-type cards round)
-                       (evaluate-odds game player))))]
-    (println (format "%-10s\t%-10s\t%,6d\t  %s" name (str hand) chips (or rating "")))
-    (when (and show-player-draws (#{:flop :turn} round))
+                       (#(if show-odds? (evaluate-odds % game player) %)))))]
+    (println (format "%-10s\t%-10s\t%,6d\t  %s" name player-hand chips (or rating "")))
+    (when (and show-draws? (#{:flop :turn} round))
       (let [probability-key ({:flop :turn+river, :turn :turn->river} round)
             draws (->> (player-draws hand board)
                        (map #(format "%s (%.1f%%)" (clojure.core/name (:draw-type %)) (probability-key %)))
@@ -175,6 +176,14 @@
   (let [f (if (= 1 (:id (first args))) cli-action-fn default-action-fn)]
     (apply f args)))
 
+(def ^:private show-draws? false)
+
+(defn default-cli-opts [mode]
+  (let [show-full-info? (not= mode :single-player)]
+    {:show-all-player-info? show-full-info?
+     :show-draws? show-draws?
+     :show-odds? show-full-info?}))
+
 (defn new-cli-game
   ([] (new-cli-game :interactive))
   ([mode]
@@ -182,6 +191,8 @@
                       :auto default-action-fn
                       :interactive cli-action-fn
                       :single-player single-player-action-fn
+                      :cheat single-player-action-fn
                       (throw (IllegalArgumentException. (str "Unknown mode: " (pr-str mode)))))]
       (-> (new-game :action-fn action-fn)
+          (merge (default-cli-opts mode))
           (register-event-handler cli-event-handler)))))
