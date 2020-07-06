@@ -7,5 +7,4 @@
                  [org.clojure/math.combinatorics "0.1.6"]]
   :main ^:skip-aot cloker.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}}
-  :jvm-opts ["-Xmx4g"])
+  :profiles {:uberjar {:aot :all}})
