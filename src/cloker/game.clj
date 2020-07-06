@@ -14,9 +14,9 @@
 
 (defrecord Game [ante small-blind big-blind players deck hands busted-players action-fn])
 
-(defn default-action-fn [_ actions _ _ _]
+(defn default-action-fn [state]
   (->> [:check :call :fold]
-       (keep #(when ((set actions) %) {:action %}))
+       (keep #(when ((set (:allowed-actions state)) %) {:action %}))
        first))
 
 (defn ->player-map [players]
@@ -211,6 +211,16 @@
     is-big-blind? :big-blind
     nil))
 
+(defn action-fn-state [game player player-bet current-bet]
+  {:player player
+   :player-bet player-bet
+   :current-bet current-bet
+   :position (player-position game player)
+   :board (current-board game)
+   :round (current-round game)
+   :num-players (num-players-in-hand game)
+   :allowed-actions (available-actions game player player-bet current-bet)})
+
 (defn round-of-betting [game]
   (loop [game game
          state (round-betting-state game)
@@ -224,9 +234,7 @@
         :recur (recur game state player-ids)
         (let [_ (emit game (event :player-to-act game player))
               player-bet (player-bets player-id)
-              actions (available-actions game player player-bet current-bet)
-              position (player-position game player)
-              {:keys [action amount]} ((:action-fn game) player actions position current-bet player-bet)]
+              {:keys [action amount]} ((:action-fn game) (action-fn-state game player player-bet current-bet))]
           (cond
             (= :fold action) (recur (fold game player) state player-ids)
             (= :call action) (let [game (bet game player (- current-bet player-bet))

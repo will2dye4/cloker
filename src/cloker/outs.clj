@@ -22,6 +22,8 @@
 
 (def out-probabilities (map-vals #(apply new-probabilities %) probabilities))
 
+(def round->probability-key {:flop :turn+river, :turn :turn->river})
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;            Draw Type               # Outs    Hand      Flop             Specific Outs         ;;
 ;; -------------------------------    ------   -----    ---------    -------------------------   ;;
@@ -62,6 +64,20 @@
          (merge {:draw-type type :num-draws num-draws} (out-probabilities num-draws)))
        %)
     draw-types))
+
+(def draw-type->hand-type
+  {:pocket-pair->set :three-of-a-kind
+   :one-overcard->overpair :pair
+   :inside-straight-draw :straight
+   :two-pair->full-house :full-house
+   :pair->two-pair-or-trips {:two-pair 60 :three-of-a-kind 40}
+   :nothing->pair :pair
+   :two-overcards->overpair :pair
+   :set->full-house-or-quads {:full-house 86 :four-of-a-kind 14}
+   :open-ended-straight-draw :straight
+   :flush-draw :flush
+   :inside-straight-and-flush-draw {:straight 33 :flush 67}
+   :open-ended-straight-and-flush-draw {:straight 53 :flush 47}})
 
 (defn overcards [hand board]
   (filter

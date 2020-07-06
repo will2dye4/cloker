@@ -1,0 +1,61 @@
+;; # of players --> hand type --> probability of winning ("hand strength")
+{2 {:high-card 13
+    :pair 41
+    :two-pair 67
+    :three-of-a-kind 77
+    :straight 93
+    :flush 88
+    :full-house 94
+    :four-of-a-kind 95
+    :straight-flush 100
+    :royal-flush 100}
+ 3 {:high-card 2
+    :pair 20
+    :two-pair 44
+    :three-of-a-kind 67
+    :straight 86
+    :flush 76
+    :full-house 87
+    :four-of-a-kind 95
+    :straight-flush 99
+    :royal-flush 100}
+ 4 {:high-card 0.2
+    :pair 11
+    :two-pair 28
+    :three-of-a-kind 59
+    :straight 80
+    :flush 67
+    :full-house 81
+    :four-of-a-kind 95
+    :straight-flush 98
+    :royal-flush 100}
+ 5 {:high-card 0.01
+    :pair 7
+    :two-pair 19
+    :three-of-a-kind 53
+    :straight 74
+    :flush 58
+    :full-house 75
+    :four-of-a-kind 95
+    :straight-flush 97
+    :royal-flush 100}
+ 6 {:high-card 0.000003
+    :pair 4
+    :two-pair 12
+    :three-of-a-kind 47
+    :straight 69
+    :flush 50
+    :full-house 70
+    :four-of-a-kind 96
+    :straight-flush 97
+    :royal-flush 100}
+ 7 {:high-card 0
+    :pair 3
+    :two-pair 8
+    :three-of-a-kind 41
+    :straight 65
+    :flush 44
+    :full-house 66
+    :four-of-a-kind 96
+    :straight-flush 96
+    :royal-flush 100}}

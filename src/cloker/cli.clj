@@ -1,10 +1,11 @@
 (ns cloker.cli
   (:require [clojure.string :as str]
+            [cloker.ai :refer [ai-action-fn]]
             [cloker.game :refer :all]
             [cloker.player :refer [check-bet]]
             [cloker.rating :refer [check-draws rate-hand]]
             [cloker.odds :refer [player-odds]]
-            [cloker.outs :refer [player-draws]]
+            [cloker.outs :refer [player-draws round->probability-key]]
             [cloker.utils :refer [center-heading input repeat-char]]))
 
 (defn show-board [game]
@@ -48,7 +49,7 @@
                        (#(if show-odds? (evaluate-odds % game player) %)))))]
     (println (format "%-10s\t%-10s\t%,6d\t  %s" name player-hand chips (or rating "")))
     (when (and show-draws? (#{:flop :turn} round))
-      (let [probability-key ({:flop :turn+river, :turn :turn->river} round)
+      (let [probability-key (round->probability-key round)
             draws (->> (player-draws hand board)
                        (map #(format "%s (%.1f%%)" (clojure.core/name (:draw-type %)) (probability-key %)))
                        (str/join ", "))]
@@ -157,8 +158,9 @@
             (not (check-bet player (- amount player-bet))) (println (format "Invalid amount - %s only has %,d chips" (:name player) (:chips player)))
             :else {:action (keyword verb) :amount amount}))))))
 
-(defn cli-action-fn [player allowed-actions position current-bet player-bet]
-  (let [annotation (if position (str " (" (position-strs position) ")") "")
+(defn cli-action-fn [state]
+  (let [{:keys [player player-bet current-bet position allowed-actions]} state
+        annotation (if position (str " (" (position-strs position) ")") "")
         action-names (map name allowed-actions)
         actions (set action-names)
         prompt (format "[%,d] %s%s may %s: " current-bet (:name player) annotation (str/join ", " action-names))]
@@ -172,9 +174,11 @@
                                     (recur))
           :else {:action (keyword verb)})))))
 
-(defn single-player-action-fn [& args]
-  (let [f (if (= 1 (:id (first args))) cli-action-fn default-action-fn)]
-    (apply f args)))
+(def ^:private auto-action-fn ai-action-fn)  ;; set to default-action-fn to use 'dumb' action function
+
+(defn single-player-action-fn [state]
+  (let [f (if (= 1 (:id (:player state))) cli-action-fn auto-action-fn)]
+    (f state)))
 
 (def ^:private show-draws? false)
 
@@ -188,7 +192,7 @@
   ([] (new-cli-game :interactive))
   ([mode]
     (let [action-fn (case mode
-                      :auto default-action-fn
+                      :auto auto-action-fn
                       :interactive cli-action-fn
                       :single-player single-player-action-fn
                       :cheat single-player-action-fn
