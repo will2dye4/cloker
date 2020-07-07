@@ -6,7 +6,7 @@
             [cloker.rating :refer [check-draws rate-hand]]
             [cloker.odds :refer [player-odds]]
             [cloker.outs :refer [player-draws round->probability-key]]
-            [cloker.utils :refer [center-heading input repeat-char]]))
+            [cloker.utils :refer [center-heading input repeat-char sum]]))
 
 (defn show-board [game]
   (when-let [current-hand (:current-hand game)]
@@ -78,7 +78,7 @@
 
 (defn show-outcomes [hand-freqs key]
   (let [heading (str ({:total "All" :wins "Winning"} key) " Outcomes")
-        sum-field (fn [field] (reduce + (map #(get-in (val %) [key field]) hand-freqs)))
+        sum-field (fn [field] (sum (map #(get-in (val %) [key field]) hand-freqs)))
         total-outcomes (sum-field :occurrences)
         frequency-total (sum-field :frequency)]
     (println (center-heading heading heading-width))

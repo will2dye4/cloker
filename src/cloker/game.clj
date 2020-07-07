@@ -215,6 +215,7 @@
   {:player player
    :player-bet player-bet
    :current-bet current-bet
+   :big-blind (:big-blind game)
    :position (player-position game player)
    :board (current-board game)
    :round (current-round game)

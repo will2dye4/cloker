@@ -4,6 +4,8 @@
 
 (def enumerate (partial map-indexed vector))
 
+(def sum (partial reduce +))
+
 (defn consecutive-pairs [coll] (map vector coll (drop 1 coll)))
 
 (defn rotate
