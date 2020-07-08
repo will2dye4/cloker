@@ -13,25 +13,29 @@
                                  :diamonds (Suit. 2 "♦︎")
                                  :clubs (Suit. 1 "♣")}))
 
-(defrecord Rank [value symbol name]
+(defrecord Rank [key value symbol name]
   Comparable
     (compareTo [_ other] (compare value (:value other)))
   Object
     (toString [_] symbol))
 
-(def ranks (sorted-map-by-value {:2 (Rank. 2 "2" "deuce")
-                                 :3 (Rank. 3 "3" "three")
-                                 :4 (Rank. 4 "4" "four")
-                                 :5 (Rank. 5 "5" "five")
-                                 :6 (Rank. 6 "6" "six")
-                                 :7 (Rank. 7 "7" "seven")
-                                 :8 (Rank. 8 "8" "eight")
-                                 :9 (Rank. 9 "9" "nine")
-                                 :10 (Rank. 10 "10" "ten")
-                                 :jack (Rank. 11 "J" "jack")
-                                 :queen (Rank. 12 "Q" "queen")
-                                 :king (Rank. 13 "K" "king")
-                                 :ace (Rank. 14 "A" "ace")}))
+(def ^:private rank-data [[:2 "2" "deuce"]
+                          [:3 "3" "three"]
+                          [:4 "4" "four"]
+                          [:5 "5" "five"]
+                          [:6 "6" "six"]
+                          [:7 "7" "seven"]
+                          [:8 "8" "eight"]
+                          [:9 "9" "nine"]
+                          [:10 "10" "ten"]
+                          [:jack "J" "jack"]
+                          [:queen "Q" "queen"]
+                          [:king "K" "king"]
+                          [:ace "A" "ace"]])
+
+(def ranks (sorted-map-by-value
+             (into {} (for [[i [key symbol name]] (enumerate rank-data)]
+                        [key (Rank. key (+ i 2) symbol name)]))))
 
 (defrecord Card [rank suit]
   Comparable

@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.set :as set]
+            [cloker.ai.pre-flop :refer [hand->group]]
             [cloker.game :refer [default-action-fn]]
             [cloker.outs :refer [draw-type->hand-type player-draws round->probability-key]]
             [cloker.rating :refer [rate-hand]]
@@ -86,7 +87,10 @@
 
 (defn naive-action-fn [state]
   (if (= :pre-flop (:round state))
-    (default-action-fn state)  ;; TODO - make this smarter
+    (do
+      (when debug-ai-actions?
+        (println (str "Hand Group: " (hand->group (:hand (:player state))))))
+      (default-action-fn state))  ;; TODO - make this smarter
     (let [{:keys [player current-bet big-blind board round num-players allowed-actions]} state
           {hand :hand player-chips :chips} player
           rating (rate-hand (concat hand board))
