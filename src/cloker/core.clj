@@ -29,11 +29,11 @@
     (when (and rank suit)
       (->Card rank suit))))
 
-(defn play-game [& {:keys [mode] :or {mode :interactive}}]
+(defn play-game [& {:keys [mode num-players] :or {mode :interactive num-players default-num-players}}]
   (println "Welcome! A new game is starting.\n")
   (try
     (let [prompt "\nWould you like to play another hand? "]
-      (loop [game (new-cli-game mode)]
+      (loop [game (new-cli-game mode num-players)]
         (let [game (play-hand game)
               players (players game)]
           (if (= 1 (count players))

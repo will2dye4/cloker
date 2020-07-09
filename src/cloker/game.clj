@@ -14,6 +14,12 @@
 
 (defrecord Game [ante small-blind big-blind players deck hands busted-players action-fn])
 
+(def default-ante 0)
+
+(def default-blinds [100 200])
+
+(def default-num-players 4)
+
 (defn default-action-fn [state]
   (->> [:check :call :fold]
        (keep #(when ((set (:allowed-actions state)) %) {:action %}))
@@ -25,7 +31,8 @@
        (into (sorted-map))))
 
 (defn new-game [& {:keys [ante blinds players num-players action-fn]
-                   :or {ante 0, blinds [100 200], players nil, num-players 4, action-fn default-action-fn}}]
+                   :or {ante default-ante, blinds default-blinds, players nil,
+                        num-players default-num-players, action-fn default-action-fn}}]
   {:pre [(int? ante) (>= ante 0)
          (sequential? blinds) (= 2 (count blinds)) (every? int? blinds) (< (first blinds) (last blinds))
          (let [n (if players (count players) num-players)] (> n 1))]}

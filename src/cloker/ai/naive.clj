@@ -1,8 +1,8 @@
 (ns cloker.ai.naive
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.set :as set]
-            [cloker.ai.pre-flop :refer [hand->group]]
+            [cloker.ai.pre-flop :refer [pre-flop-action-fn]]
+            [cloker.ai.utils :refer [debug-ai-actions? select-action]]
             [cloker.game :refer [default-action-fn]]
             [cloker.outs :refer [draw-type->hand-type player-draws round->probability-key]]
             [cloker.rating :refer [rate-hand]]
@@ -53,44 +53,9 @@
     [90 100] [1 19 80]
     (throw (IllegalArgumentException. (str "Unexpected overall-win%: " overall-win%)))))
 
-(defn wrand
-  "Given a vector of slice sizes, returns the index of a slice given a
-   random spin of a roulette wheel with compartments proportional to slices."
-  [slices]
-  (let [total (sum slices)
-        r (rand total)]
-    (loop [i 0 sum 0]
-      (if (< r (+ (slices i) sum))
-        i
-        (recur (inc i) (+ (slices i) sum))))))
-
-(defn select-action [allowed-actions fcr current-bet min-raise max-raise]
-  (let [actions (set allowed-actions)
-        [fold% call% raise%] fcr]
-    (if (= 1 (count actions))
-      {:action (first actions)}
-      (let [raise-actions (set/intersection actions #{:bet :raise})]
-        (if (and (empty? raise-actions) (pos? raise%))
-          (let [increment (int (/ raise% 2))
-                fcr [(+ fold% increment) (+ call% increment) 0]]
-            (select-action allowed-actions fcr current-bet min-raise max-raise))
-          (let [fold-action (or (actions :check) :fold)
-                call-action (first (set/intersection actions #{:call :check}))
-                raise-action (first raise-actions)
-                selected-action ([fold-action call-action raise-action] (wrand fcr))
-                action {:action selected-action}]
-            (if (raise-actions selected-action)
-              (assoc action :amount (min (+ current-bet min-raise) max-raise))  ;; TODO - vary amount
-              action)))))))
-
-(def ^:private debug-ai-actions? true)
-
 (defn naive-action-fn [state]
   (if (= :pre-flop (:round state))
-    (do
-      (when debug-ai-actions?
-        (println (str "Hand Group: " (hand->group (:hand (:player state))))))
-      (default-action-fn state))  ;; TODO - make this smarter
+    (pre-flop-action-fn state)
     (let [{:keys [player current-bet big-blind board round num-players allowed-actions]} state
           {hand :hand player-chips :chips} player
           rating (rate-hand (concat hand board))

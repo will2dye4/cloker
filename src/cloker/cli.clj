@@ -190,13 +190,14 @@
 
 (defn new-cli-game
   ([] (new-cli-game :interactive))
-  ([mode]
+  ([mode] (new-cli-game mode default-num-players))
+  ([mode num-players]
     (let [action-fn (case mode
                       :auto auto-action-fn
                       :interactive cli-action-fn
                       :single-player single-player-action-fn
                       :cheat single-player-action-fn
                       (throw (IllegalArgumentException. (str "Unknown mode: " (pr-str mode)))))]
-      (-> (new-game :action-fn action-fn)
+      (-> (new-game :action-fn action-fn :num-players num-players)
           (merge (default-cli-opts mode))
           (register-event-handler cli-event-handler)))))
