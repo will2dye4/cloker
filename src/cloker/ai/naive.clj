@@ -8,6 +8,10 @@
             [cloker.rating :refer [rate-hand]]
             [cloker.utils :refer [sum]]))
 
+;; Occur and win frequencies based on simulated runs of 500,000 hands each with varying numbers of players.
+;; The simulations were conducted using the cloker.stats/run-hands function.
+;; See https://docs.google.com/spreadsheets/d/1bQB9TCIMCyte4sTR2meIeSpTd0xQIva9C8-StaYZX9Y for more.
+
 (def occur-frequencies
   {:high-card 13
    :pair 41

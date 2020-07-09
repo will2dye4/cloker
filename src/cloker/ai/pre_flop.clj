@@ -3,6 +3,9 @@
             [cloker.constants :refer [num-hole-cards]]
             [cloker.outs :refer [has-pocket-pair?]]))
 
+;; Hand groups are based on those in Tables I and II of "Hold'em Poker for Advanced Players" (Sklansky & Malmuth).
+;; See https://pdfs.semanticscholar.org/dc7a/0e5d30bffdd096ffd494a17840ffb7d39afc.pdf for more.
+
 ;; rank --> group (1-8)
 (def pair-groups (->> {#{:jack :queen :king :ace} 1 #{:10} 2 #{:9} 3 #{:8} 4 #{:7} 5 #{:5 :6} 6 #{:2 :3 :4} 7}
                       (reduce (fn [m [rs g]] (apply assoc m (flatten (map #(vector % g) rs)))) {})))
