@@ -1,9 +1,11 @@
 (ns cloker.ai.cloki
   (:require [clojure.math.combinatorics :refer [combinations]]
+            [cloker.ai.pre-flop :refer [pre-flop-action-fn]]
+            [cloker.ai.utils :refer [debug-ai-actions? select-action]]
             [cloker.cards :refer [new-deck]]
             [cloker.constants :refer [board-size num-hole-cards]]
             [cloker.rating :refer [excluding rate-hand]]
-            [cloker.utils :refer [map-vals sum]]))
+            [cloker.utils :refer [map-vals percentage sum]]))
 
 ;; Hand strength calculations based on the "Loki" agent and algorithms described in
 ;; "Opponent Modeling in Poker" (Billings, Papp, Schaeffer, & Szafron, 1998).
@@ -38,7 +40,7 @@
           (/ (+ ahead (/ tied 2)) (+ ahead tied behind)))))))
 
 (defn adjusted-hand-strength [hand board num-players]
-  (* (Math/pow (hand-strength hand board) (dec num-players)) 100))
+  (Math/pow (hand-strength hand board) (dec num-players)))
 
 (def ^:private initial-hand-potentials (map-vals (constantly initial-hand-strengths) initial-hand-strengths))
 
@@ -70,3 +72,35 @@
                        (+ (hp-total :ahead)
                           (hp-total :tied)))]
           [p-pot n-pot])))))
+
+(def effective-hand-strength
+  (memoize
+    (fn [hand board num-players]
+      (let [hand-strength (adjusted-hand-strength hand board num-players)
+            [p-pot _] (hand-potential hand board)]
+        (* 100 (+ hand-strength (* p-pot (- 1 hand-strength))))))))
+
+(defn pot-odds [pot current-bet] (percentage current-bet (+ current-bet pot)))
+
+(defn fcr [ehs pot-odds]
+  (let [ehs (int ehs)]
+  (if (>= ehs pot-odds)
+    [0 (- 100 ehs) ehs]
+    (let [half-ehs (int (/ ehs 2))] [(- 100 ehs) half-ehs half-ehs]))))
+
+(defn cloki-action-fn [state]
+  (if (= :pre-flop (:round state))
+    (pre-flop-action-fn state)
+    (let [{:keys [player current-bet big-blind pot board round num-players allowed-actions]} state
+          {hand :hand name :name player-chips :chips} player
+          _ (when (= :flop round) (println (str name " is thinking...")))
+          ehs (effective-hand-strength hand board num-players)
+          pot-odds (pot-odds pot current-bet)
+          fcr (fcr ehs pot-odds)
+          action (select-action allowed-actions fcr current-bet big-blind player-chips)]
+      (when debug-ai-actions?
+        (prn (merge action {:hand-type (:key (:hand-type (rate-hand (concat hand board))))
+                            :ehs ehs
+                            :pot-odds pot-odds
+                            :fcr fcr})))
+      action)))

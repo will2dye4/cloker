@@ -223,6 +223,7 @@
    :player-bet player-bet
    :current-bet current-bet
    :big-blind (:big-blind game)
+   :pot (get-in game [:current-hand :pot])
    :position (player-position game player)
    :board (current-board game)
    :round (current-round game)
