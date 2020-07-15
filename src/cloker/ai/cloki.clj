@@ -61,24 +61,29 @@
           (recur (assoc hp key hs) (rest all-opponent-hands)))
         (let [hp-total (map-vals #(sum (map val %)) hp)
               hp-of (fn [k1 k2] (get-in hp [k1 k2]))
-              p-pot (/ (+ (hp-of :behind :ahead)
-                          (/ (hp-of :behind :tied) 2)
-                          (/ (hp-of :tied :ahead) 2))
-                       (+ (hp-total :behind)
-                          (hp-total :tied)))
-              n-pot (/ (+ (hp-of :ahead :behind)
-                          (/ (hp-of :tied :behind) 2)
-                          (/ (hp-of :ahead :tied) 2))
-                       (+ (hp-total :ahead)
-                          (hp-total :tied)))]
+              behind+tied (+ (hp-total :behind) (hp-total :tied))
+              ahead+tied (+ (hp-total :ahead) (hp-total :tied))
+              p-pot (if (zero? behind+tied)
+                      0
+                      (/ (+ (hp-of :behind :ahead)
+                            (/ (hp-of :behind :tied) 2)
+                            (/ (hp-of :tied :ahead) 2))
+                         behind+tied))
+              n-pot (if (zero? ahead+tied)
+                      0
+                      (/ (+ (hp-of :ahead :behind)
+                            (/ (hp-of :tied :behind) 2)
+                            (/ (hp-of :ahead :tied) 2))
+                         ahead+tied))]
           [p-pot n-pot])))))
 
 (def effective-hand-strength
   (memoize
     (fn [hand board num-players]
       (let [hand-strength (adjusted-hand-strength hand board num-players)
-            [p-pot _] (hand-potential hand board)]
-        (* 100 (+ hand-strength (* p-pot (- 1 hand-strength))))))))
+            [p-pot n-pot] (hand-potential hand board)]
+        (* 100 (+ (* (- 1 n-pot) hand-strength)
+                  (* p-pot (- 1 hand-strength))))))))
 
 (defn pot-odds [pot current-bet] (percentage current-bet (+ current-bet pot)))
 
