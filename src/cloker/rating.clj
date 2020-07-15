@@ -237,12 +237,16 @@
                          vec))]
       (HandRating. cards (val hand-type) participants kickers))))
 
-(defn rate-hand [cards]
-  (->> hand-types
-       reverse
-       (map #(hand-rating % cards))
-       (remove nil?)
-       first))
+(def ^:private best-hand-rating
+  (memoize
+    (fn [cards]
+      (->> hand-types
+           reverse
+           (map #(hand-rating % cards))
+           (remove nil?)
+           first))))
+
+(defn rate-hand [cards] (best-hand-rating (set cards)))
 
 (defn rate-hands [players board]
   (for [player players
