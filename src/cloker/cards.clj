@@ -73,7 +73,7 @@
 
 (defn draw-hands [n deck]
   (let [num-cards (* num-hole-cards n)
-        [top-cards deck] (draw num-cards deck)
+        [top-cards deck] (draw num-cards deck false)
         hands (mapv sort-cards (partition num-hole-cards top-cards))]
     [hands deck]))
 
